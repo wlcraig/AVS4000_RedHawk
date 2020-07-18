@@ -1,7 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="c9535643-4b8f-4d6f-bbe9-9d6b77b8837d" name="Default Changelist" comment="" />
+    <list default="true" id="c9535643-4b8f-4d6f-bbe9-9d6b77b8837d" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/AVS4000.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/AVS4000.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/AVS4000.prf.xml" beforeDir="false" afterPath="$PROJECT_DIR$/AVS4000.prf.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/python/.md5sums" beforeDir="false" afterPath="$PROJECT_DIR$/python/.md5sums" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/python/AVS4000.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/AVS4000.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/python/AVS4000Transceiver.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/AVS4000Transceiver.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/python/AVS4000_base.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/AVS4000_base.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/python/AVS4000_base.py.orig" beforeDir="false" afterPath="$PROJECT_DIR$/python/AVS4000_base.py.orig" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/python/autom4te.cache/requests" beforeDir="false" afterPath="$PROJECT_DIR$/python/autom4te.cache/requests" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/python/config.log" beforeDir="false" afterPath="$PROJECT_DIR$/python/config.log" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -9,24 +22,12 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="FileEditorManager">
-    <leaf>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/python/AVS4000Transceiver.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1005">
-              <caret line="11" column="12" selection-start-line="11" selection-start-column="12" selection-end-line="11" selection-end-column="12" />
-              <folding>
-                <element signature="e#31#44#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/python/AVS4000.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-105">
-              <caret line="605" column="36" selection-start-line="605" selection-start-column="30" selection-end-line="605" selection-end-column="37" />
+            <state relative-caret-position="157">
+              <caret line="48" column="50" selection-start-line="48" selection-start-column="50" selection-end-line="48" selection-end-column="50" />
               <folding>
                 <element signature="e#71#108#0" expanded="true" />
               </folding>
@@ -35,12 +36,12 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/projects/avid/python/test_transfer.py">
+        <entry file="file://$PROJECT_DIR$/python/AVS4000Transceiver.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="225">
-              <caret line="30" column="9" selection-start-line="30" selection-start-column="9" selection-end-line="30" selection-end-column="9" />
+            <state relative-caret-position="322">
+              <caret line="1088" column="8" selection-start-line="1088" selection-start-column="8" selection-end-line="1088" selection-end-column="8" />
               <folding>
-                <element signature="e#0#13#0" expanded="true" />
+                <element signature="e#31#44#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -48,11 +49,15 @@
       </file>
     </leaf>
   </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
         <option value="$USER_HOME$/projects/avid/test_transfer.py" />
         <option value="$USER_HOME$/projects/avid/python/test_transfer.py" />
+        <option value="$PROJECT_DIR$/python/AVS4000_base.py" />
         <option value="$PROJECT_DIR$/python/AVS4000Transceiver.py" />
         <option value="$PROJECT_DIR$/python/AVS4000.py" />
       </list>
@@ -60,16 +65,16 @@
   </component>
   <component name="ProjectFrameBounds">
     <option name="x" value="-4" />
-    <option name="y" value="54" />
+    <option name="y" value="81" />
     <option name="width" value="1642" />
     <option name="height" value="929" />
   </component>
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
     <navigator proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -86,10 +91,11 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/python" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../assets/sdr/devices/MSDD" />
     <property name="settings.editor.selected.configurable" value="PyConsoleConfigurable.Python Console" />
   </component>
   <component name="PyConsoleOptionsProvider">
@@ -136,46 +142,43 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-4" y="54" width="1642" height="929" extended-state="0" />
+    <frame x="-4" y="81" width="1642" height="929" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info id="Favorites" side_tool="true" />
-      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.49811321" visible="true" weight="0.13081215" />
-      <window_info id="Structure" order="1" sideWeight="0.5018868" side_tool="true" visible="true" weight="0.13081215" />
-      <window_info anchor="bottom" id="Version Control" />
-      <window_info anchor="bottom" id="Python Console" sideWeight="0.49907005" weight="0.32911393" />
-      <window_info anchor="bottom" id="Terminal" weight="0.32911393" />
-      <window_info anchor="bottom" id="Event Log" sideWeight="0.5015499" side_tool="true" weight="0.32911393" />
-      <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" weight="0.3278481" />
-      <window_info anchor="bottom" id="Run" order="2" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
-      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
-      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="6" sideWeight="0.4984501" visible="true" weight="0.32911393" />
-      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
-      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
-      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
-    </layout>
-    <layout-to-restore>
       <window_info id="Favorites" order="0" side_tool="true" />
-      <window_info active="true" content_ui="combo" id="Project" order="1" visible="true" weight="0.24984501" />
-      <window_info id="Structure" order="2" side_tool="true" weight="0.25" />
-      <window_info anchor="bottom" id="Terminal" order="0" />
-      <window_info anchor="bottom" id="Event Log" order="1" side_tool="true" />
-      <window_info anchor="bottom" id="Version Control" order="2" />
-      <window_info anchor="bottom" id="Python Console" order="3" visible="true" weight="0.32911393" />
-      <window_info anchor="bottom" id="Message" order="4" />
-      <window_info anchor="bottom" id="Find" order="5" weight="0.3278481" />
+      <window_info content_ui="combo" id="Project" order="1" sideWeight="0.49620253" visible="true" weight="0.19962803" />
+      <window_info active="true" id="Structure" order="2" sideWeight="0.5037975" side_tool="true" visible="true" weight="0.19962803" />
+      <window_info anchor="bottom" id="Terminal" order="0" weight="0.32911393" />
+      <window_info anchor="bottom" id="Event Log" order="1" sideWeight="0.5015499" side_tool="true" weight="0.32911393" />
+      <window_info anchor="bottom" id="Python Console" order="2" sideWeight="0.49907005" weight="0.32911393" />
+      <window_info anchor="bottom" id="Message" order="3" />
+      <window_info anchor="bottom" id="Find" order="4" weight="0.3278481" />
+      <window_info anchor="bottom" id="Version Control" order="5" />
       <window_info anchor="bottom" id="Run" order="6" />
       <window_info anchor="bottom" id="Debug" order="7" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="8" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="9" weight="0.4" />
-      <window_info anchor="bottom" id="TODO" order="10" />
+      <window_info anchor="bottom" id="TODO" order="10" sideWeight="0.4984501" weight="0.32911393" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
-    </layout-to-restore>
+    </layout>
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/../assets/sdr/devices/MSDD/python/MSDD.py</url>
+          <line>631</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/../assets/sdr/devices/MSDD/python/MSDD_base.py</url>
+          <line>44</line>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="editorHistoryManager">
     <entry file="file:///data/software/czimmerman/phy-2.7-gpu/lib/python2.7/asyncore.py">
@@ -206,16 +209,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/projects/avid/test_transfer.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="390">
-          <caret line="32" column="13" lean-forward="true" selection-start-line="32" selection-start-column="13" selection-end-line="32" selection-end-column="13" />
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$USER_HOME$/projects/avid/test_transfer.py" />
     <entry file="file://$USER_HOME$/projects/avid/python/test_transfer.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="225">
@@ -240,10 +234,99 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/../assets/sdr/devices/MSDD/python/MSDD_test">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="45">
+          <caret line="73" column="25" lean-forward="true" selection-start-line="73" selection-start-column="25" selection-end-line="73" selection-end-column="25" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.PyCharmCE2018.3/system/python_stubs/1148601556/__builtin__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="254">
+          <caret line="3787" column="8" selection-start-line="3787" selection-start-column="8" selection-end-line="3787" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/python/AVS4000_base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="300">
+          <caret line="202" column="44" selection-start-line="202" selection-start-column="44" selection-end-line="202" selection-end-column="44" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/local/redhawk/core/lib/python/bulkio/output_ports.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="247">
+          <caret line="392" column="43" selection-start-line="392" selection-start-column="43" selection-end-line="392" selection-end-column="43" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../assets/sdr/devices/MSDD/python/msddcontroller.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="161">
+          <caret line="197" column="10" selection-start-line="197" selection-start-column="10" selection-end-line="197" selection-end-column="10" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/local/redhawk/core/lib/python/ossie/cf/CF__POA/__init__.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../assets/sdr/devices/MSDD/python/MSDD.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="356">
+          <caret line="1405" column="25" lean-forward="true" selection-start-line="1405" selection-start-column="25" selection-end-line="1405" selection-end-column="25" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../assets/sdr/devices/MSDD/python/MSDD_base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="191">
+          <caret line="1683" column="19" lean-forward="true" selection-start-line="1683" selection-start-column="17" selection-end-line="1683" selection-end-column="32" />
+          <folding>
+            <element signature="e#914#937#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/local/redhawk/core/lib/python/frontend/tuner_device.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="131">
+          <caret line="670" column="22" selection-start-line="670" selection-start-column="22" selection-end-line="670" selection-end-column="22" />
+          <folding>
+            <element signature="e#883#915#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/local/redhawk/core/lib/python/ossie/device.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-11404">
+          <caret line="438" column="8" selection-start-line="438" selection-start-column="8" selection-end-line="438" selection-end-column="8" />
+          <folding>
+            <element signature="e#829#852#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/local/redhawk/core/lib/python/frontend/input_ports.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="161">
+          <caret line="314" selection-start-line="314" selection-end-line="314" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/local/redhawk/core/lib/python/ossie/threadedcomponent.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="74">
+          <caret line="66" column="27" selection-start-line="66" selection-start-column="27" selection-end-line="66" selection-end-column="27" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/python/AVS4000Transceiver.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1005">
-          <caret line="11" column="12" selection-start-line="11" selection-start-column="12" selection-end-line="11" selection-end-column="12" />
+        <state relative-caret-position="322">
+          <caret line="1088" column="8" selection-start-line="1088" selection-start-column="8" selection-end-line="1088" selection-end-column="8" />
           <folding>
             <element signature="e#31#44#0" expanded="true" />
           </folding>
@@ -252,8 +335,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/python/AVS4000.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-105">
-          <caret line="605" column="36" selection-start-line="605" selection-start-column="30" selection-end-line="605" selection-end-column="37" />
+        <state relative-caret-position="157">
+          <caret line="48" column="50" selection-start-line="48" selection-start-column="50" selection-end-line="48" selection-end-column="50" />
           <folding>
             <element signature="e#71#108#0" expanded="true" />
           </folding>

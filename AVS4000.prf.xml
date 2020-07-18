@@ -109,4 +109,33 @@ False: Does not need control and can just attach to any currently tasked device 
     </simple>
     <configurationkind kindtype="allocation"/>
   </struct>
+  <structsequence id="avs4000_output_configuration" mode="readwrite">
+    <struct id="avs4000_output_configuration::" name="">
+      <description>Used to configure the output format of the tuner</description>
+      <simple id="avs4000_output_configuration::tuner_number" name="tuner_number" type="long">
+        <description>Tuner number from the frontend_tuner_status property</description>
+        <value>0</value>
+      </simple>
+      <simple id="avs4000_output_configuration::output_format" name="output_format" type="string">
+        <value>COMPLEX_Format</value>
+        <enumerations>
+          <enumeration label="COMPLEX" value="COMPLEX_Format"/>
+          <enumeration label="VITA49" value="VITA49_Format"/>
+        </enumerations>
+      </simple>
+      <simple id="avs4000_output_configuration::output_source" name="output_source" type="string">
+        <value>TCP_Source</value>
+        <enumerations>
+          <enumeration label="TCP" value="TCP_Source"/>
+          <enumeration label="BULKIO" value="BULKIO_Source"/>
+        </enumerations>
+      </simple>
+    </struct>
+    <structvalue>
+      <simpleref refid="avs4000_output_configuration::tuner_number" value="0"/>
+      <simpleref refid="avs4000_output_configuration::output_format" value="&quot;COMPLEX_Format&quot;"/>
+      <simpleref refid="avs4000_output_configuration::output_source" value=""/>
+    </structvalue>
+    <configurationkind kindtype="property"/>
+  </structsequence>
 </properties>

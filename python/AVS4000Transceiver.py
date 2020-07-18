@@ -398,6 +398,7 @@ class DeviceController:
         self.allocation_id_    = ''
 
         self.change_flag_      = False
+        self.read_data_        = True
 
         self.buffer_           = bytearray(1024 * 512)
 
@@ -672,11 +673,19 @@ class DeviceController:
             self.logger_.debug("<-- enable()")
             return False
 
+        '''
+        NOTE:
+          It is unclear if the component has been connected to the device at this point.
+        '''
 
         #
         # Create data connection
         #
-        self.connect_data()
+        if self.read_data_:
+            self.logger_.debug("    read_data_ <True>")
+            self.connect_data()
+        else:
+            self.logger_.debug("    read_data_ <False>")
 
         #
         # Turn the data on
@@ -771,32 +780,23 @@ class DeviceController:
         self.logger_.debug("<-- disable()")
 
 
-    def _create_tune_request(self, the_center_frequency, the_bandwidth, the_sample_rate):
+    def _create_tune_request(self, the_data_port, the_center_frequency, the_sample_rate, the_output_format):
         '''
-        :param the_center_frequency:
-        :param the_bandwidth:
-        :param the_sample_rate:
+        This is a utility method to create the JSON message to configure the receiver for tuning
+
+        :param the_data_port:         The TCP port that the data consumer/sink will read from
+        :param the_center_frequency:  The center frequency to tune to in MHz
+        :param the_sample_rate:       The sample rate in MSPS
+        :param the_output_format:     The output format: COMPLEXOutputFormat, VITA49OutputFormat
 
         :return:
-            List that may be converted to a JSON object
+            List that may be converted to a JSON object, and conforms to the AVS4000 API
         '''
-
-        """
-        NOTE:
-          1. verify that the rx.startMode causes tune request to fail
-        """
-
-        '''
-        Save off the values 
-        '''
-        self.bandwidth_        = None
-        self.center_frequency_ = the_center_frequency
-        self.sample_rate_      = the_sample_rate
 
         #
         # Determine what the output fprmat should be:
         #
-        if self.output_format_ == VITA49OutputFormat:
+        if the_output_format == VITA49OutputFormat:
             useV49 = True
         else:
             useV49 = False
@@ -810,7 +810,7 @@ class DeviceController:
                         "conEnable": False,
                         "run":       False,
                         "conType":   "tcp",
-                        "conPort":   self.data_port_,
+                        "conPort":   the_data_port,
                         "useV49":    useV49
                     },
                     "rx" :
@@ -824,31 +824,56 @@ class DeviceController:
         return the_request
 
     def set_tune(self, the_center_frequency, the_bandwidth, the_sample_rate):
-        self.logger_.debug("---> set_tune()")
+        """
+        This method will setup the transceiver to recieve data at the specified center_frequency and sample_rate.  The
+        bandwidth parameter is ignored for now.  The receiver will be configured but not sending data at this point
+
+        :param the_center_frequency:  Where to tune in MHz
+        :param the_bandwidth:         Ignored
+        :param the_sample_rate:       The sample rate in MSPS
+
+        :return:
+            == True, the tune reqquest was successful
+            == False, the tune request failed.
+        """
+
+        self.logger_.debug("--> set_tune()")
 
         self.connect_control()
 
-        the_request = self._create_tune_request(the_center_frequency, the_bandwidth, the_sample_rate)
+        self.bandwidth_        = None
+        self.center_frequency_ = the_center_frequency
+        self.sample_rate_      = the_sample_rate
+
+        self.logger_.debug("   output_format_ <{}>".format(self.output_format_))
+
+        the_request = self._create_tune_request\
+            (
+            self.data_port_,
+            self.center_frequency_,
+            self.sample_rate_,
+            self.output_format_
+            )
 
         valid, data = self.send_command(the_request)
 
         self.change_flag_ = True
 
-        self.logger_.debug("<--- set_tune()")
+        self.logger_.debug("<-- set_tune()")
         return valid
 
     def delete_tune(self):
-        self.logger_.debug("---> delete_tune()")
+        self.logger_.debug("--> delete_tune()")
 
         #
         # FIXME: Not sure what I should do here
         #
 
-        self.logger_.debug("<--- set_tune()")
+        self.logger_.debug("<-- set_tune()")
         return True
 
     def status(self, the_type=RXType):
-        self.logger_.debug("---> status()")
+        self.logger_.debug("--> status()")
 
         self.connect_control()
 
@@ -874,8 +899,12 @@ class DeviceController:
 
     def get_complex_data_old(self):
         """
+        This method will pull data from the data socket, and return a complex data as a list of two unsigned shorts.
+        The problem is that it is extremely slow.  It is left in the source for reference.
 
         :return:
+            == None, no data
+            != None, A list/sequence of unsigned shorts
         """
         self.logger_.debug("--> get_complex_data()")
         the_data = []
@@ -919,11 +948,11 @@ class DeviceController:
 
     def get_complex_data(self):
         """
-        This method will pull data from the data socket.
+        This method will pull data from the data socket, and return a complex data as a list of two unsigned shorts.
 
         :return:
             == None, no data
-            == [],   an list of unsigned short
+            != None, a list of unsigned short
         """
 
         self.logger_.debug("--> get_complex_data()")
@@ -1007,7 +1036,7 @@ class DeviceController:
                     toread -= nbytes
 
                 self.logger_.debug("<-- get_v49_data()")
-                return view.tobytes()
+                return self.buffer_
 
             else:
                 self.logger_.debug("<-- get_v49_data()")
@@ -1016,6 +1045,8 @@ class DeviceController:
         self.logger_.debug("<-- get_v49_data()")
         return None
 
+    def get_port(self):
+        return(self.data_port_)
 
     def get_allocation_id(self):
         return(self.allocation_id_)
@@ -1037,16 +1068,27 @@ class DeviceController:
 
     def get_outpt_format(self):
         return self.output_format_
+    
+    def get_loglevel(self):
+        return self.logger_.getEffectiveLevel()
 
     def changed(self):
         the_result = self.change_flag_
         self.change_flag_ = False
         return the_result
 
+    def set_read_data(self, the_value):
+        self.logger_.debug("--> set_read_data()")
+        self.logger_.debug("    read_data_ <{}>".format(the_value))
+        self.read_data_ = the_value
+        self.logger_.debug("<-- set_read_data()")
+
     def set_loglevel(self, the_level):
         self.logger_.setLevel(the_level)
 
     def setOutputFormat(self, the_type):
+        self.logger_.debug("--> setOutputFormat()")
+        self.logger_.debug("    the_type <{}>".format(the_type))
 
         if the_type == COMPLEXOutputFormat:
             self.output_format_ = COMPLEXOutputFormat
@@ -1057,6 +1099,8 @@ class DeviceController:
         else:
             raise ValueError("Invalid output type of <{}> requested.".format(the_type))
 
+        self.logger_.debug("    output_format <{}>".format(self.output_format_))
+        self.logger_.debug("<-- setOutputFormat()")
 
 if __name__ == '__main__':
     the_dm = DeviceManager()

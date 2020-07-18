@@ -25,6 +25,14 @@ from ossie.properties import struct_to_props
 BOOLEAN_VALUE_HERE=False
 from omniORB import any as _any
 
+class enums:
+    # Enumerated values for avs4000_output_configuration::
+    class avs4000_output_configuration__:
+        # Enumerated values for avs4000_output_configuration::output_format
+        class output_format:
+            COMPLEX = "COMPLEX_Format"
+            VITA49 = "VITA49_Format"
+
 class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation, rfinfo_delegation, ThreadedComponent):
         # These values can be altered in the __init__ of your derived class
 
@@ -176,6 +184,52 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
         
             def getMembers(self):
                 return frontend.default_frontend_tuner_status_struct_struct.getMembers(self) + [("complex",self.complex),("decimation",self.decimation),("gain",self.gain),("tuner_number",self.tuner_number)]
+
+        class avs4000_output_configuration___struct(object):
+            tuner_number = simple_property(
+                                           id_="avs4000_output_configuration::tuner_number",
+                                           
+                                           name="tuner_number",
+                                           type_="long",
+                                           defvalue=0
+                                           )
+        
+            output_format = simple_property(
+                                            id_="avs4000_output_configuration::output_format",
+                                            
+                                            name="output_format",
+                                            type_="string",
+                                            defvalue="COMPLEX_Format"
+                                            )
+        
+            def __init__(self, tuner_number=0, output_format="COMPLEX_Format"):
+                self.tuner_number = tuner_number
+                self.output_format = output_format
+        
+            def __str__(self):
+                """Return a string representation of this structure"""
+                d = {}
+                d["tuner_number"] = self.tuner_number
+                d["output_format"] = self.output_format
+                return str(d)
+        
+            @classmethod
+            def getId(cls):
+                return "avs4000_output_configuration::"
+        
+            @classmethod
+            def isStruct(cls):
+                return True
+        
+            def getMembers(self):
+                return [("tuner_number",self.tuner_number),("output_format",self.output_format)]
+
+        avs4000_output_configuration = structseq_property(id_="avs4000_output_configuration",
+                                                          structdef=avs4000_output_configuration___struct,
+                                                          defvalue=[avs4000_output_configuration___struct(tuner_number=0,output_format="COMPLEX_Format")],
+                                                          configurationkind=("property",),
+                                                          mode="readwrite")
+
 
 
         # Rebind tuner status property with custom struct definition

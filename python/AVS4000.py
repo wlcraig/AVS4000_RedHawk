@@ -7,9 +7,6 @@
 from ossie.device import start_device
 import logging
 
-import socket
-import json
-
 from AVS4000_base import *
 
 import AVS4000Transceiver
@@ -54,6 +51,19 @@ class AVS4000_i(AVS4000_base):
         self.devices_ = self.dm_.get_controllers()
 
         #
+        # FIXME: Need to make sure all of the controllers are set to the proper output type as
+        #        specified by the default value identified in the IDE.
+        #
+        #for index in self.devices_.keys():
+        #    .....
+        #    self.devices_[index].setOutputFormat()
+
+        #
+        # Setup and property listeners
+        #
+        self.addPropertyChangeListener("avs4000_output_configuration", self.avs4000_output_configuration_changed)
+
+        #
         # Identify the number of devices found.
         #
         self.addChannels(len(self.devices_.keys()), "RX_DIGITIZER")
@@ -74,8 +84,6 @@ class AVS4000_i(AVS4000_base):
 
         for tuner_id in self.devices_.keys():
             self.devices_[tuner_id].setup()
-
-            #self.devices_[tuner_id].set_loglevel(logging.DEBUG)
 
         super(AVS4000_i, self).start()
 
@@ -100,6 +108,29 @@ class AVS4000_i(AVS4000_base):
             self.devices_[tuner_id].teardown()
 
         self._baseLog.info("<-- stop()")
+
+    def avs4000_output_configuration_changed(self, propid, oldval, newval):
+        self._baseLog.info("--> avs4000_output_configuration_changed()")
+        self._baseLog.info("    propid <{}>".format(propid))
+        self._baseLog.info("    oldval <{}>, length <{}>".format(oldval, len(oldval)))
+        self._baseLog.info("    oldval[0] <{}>".format(oldval[0]))
+        self._baseLog.info("    newval <{}>, length <{}>".format(newval, len(newval)))
+        self._baseLog.info("    newval[0] <{}>".format(newval[0]))
+
+        for index in range(0, len(newval)):
+            the_tuner  = newval[index].tuner_number
+            the_format = newval[index].output_format
+
+            if the_tuner < len(self.devices_):
+                if the_format == enums.avs4000_output_configuration__.output_format.COMPLEX:
+                    self.devices_[the_tuner].setOutputFormat(AVS4000Transceiver.COMPLEXOutputFormat)
+
+                if the_format == enums.avs4000_output_configuration__.output_format.VITA49:
+                    self.devices_[the_tuner].setOutputFormat(AVS4000Transceiver.VITA49OutputFormat)
+            else:
+                self._baseLog.error("Ignoring request to set output format for tuner <{}>".format(the_tuner))
+
+        self._baseLog.info("<-- avs4000_output_configuration_changed()")
 
     def process(self):
         """
@@ -268,23 +299,27 @@ class AVS4000_i(AVS4000_base):
             return NORMAL
             
         """
+        #
+        # When the avs4000Transceiver is just providing control, then just
+        # FIXME: Need to test to see what happens when the this loop is just
+        #        left to run, it should just work.
+        #
+        # This should be a configurable parameter!
+        # 
+        return NOOP
 
-        # TODO fill in your code here
         self._baseLog.debug("--> process()")
 
         for index in self.devices_:
             streamID = self.devices_[index].get_stream_id()
-            data     = self.devices_[index].get_complex_data()
 
-            if data is None:
-                self._baseLog.debug("   data is None")
-                self._baseLog.debug("<-- process()")
-                return NOOP
+            if self.devices_[index].get_outpt_format() == AVS4000Transceiver.COMPLEXOutputFormat:
+                data = self.devices_[index].get_complex_data()
 
-            returnCode = NOOP
-
-            if len(data) > 0:
-                returnCode = NORMAL
+                if data is None:
+                    self._baseLog.debug("   data is None")
+                    self._baseLog.debug("<-- process()")
+                    return NOOP
 
                 utcNow = bulkio.timestamp.now()
 
@@ -297,11 +332,32 @@ class AVS4000_i(AVS4000_base):
                     self.port_dataShort_out.pushSRI(sri)
 
                 self._baseLog.debug("    streamId <{}>, len <{}>, type data[0] <{}>".format(streamID, len(data), type(data[0])))
-
                 self.port_dataShort_out.pushPacket(data, utcNow, False, streamID)
 
+            else:
+                data = self.devices_[index].get_v49_data()
+
+                if data is None:
+                    self._baseLog.debug("   data is None")
+                    self._baseLog.debug("<-- process()")
+                    return NOOP
+
+                utcNow = bulkio.timestamp.now()
+
+                if self.devices_[index].changed():
+                    self._baseLog.info("    Pushing SRI")
+                    sri = bulkio.sri.create(streamID)
+                    sri.xdelta = 1.0/self.devices_[index].get_sample_rate()
+                    sri.mode   = 1  # Tell follow on processing that the mode is complex
+
+                    self.port_dataVITA49_out.pushSRI(sri, utcNow)
+
+                self._baseLog.debug("    streamId <{}>, len <{}>".format(streamID, len(data)))
+
+                self.port_dataVITA49_out.pushPacket(data, utcNow, False, streamID)
+
         self._baseLog.debug("<-- process()")
-        return returnCode
+        return NORMAL
 
     '''
     *************************************************************
@@ -501,7 +557,6 @@ class AVS4000_i(AVS4000_base):
         # set hardware to new value. Raise an exception if it's not possible
         #
 
-
         self.frontend_tuner_status[idx].sample_rate = sr
 
         self._baseLog.info("<-- setTunerOutputSampleRate()")
@@ -538,12 +593,12 @@ class AVS4000_i(AVS4000_base):
     def get_rfinfo_pkt(self,port_name):
         self._baseLog.info("--> get_rfinfo_pkt()")
 
-        _antennainfo=FRONTEND.AntennaInfo('','','','')
-        _freqrange=FRONTEND.FreqRange(0,0,[])
-        _feedinfo=FRONTEND.FeedInfo('','',_freqrange)
-        _sensorinfo=FRONTEND.SensorInfo('','','',_antennainfo,_feedinfo)
-        _rfcapabilities=FRONTEND.RFCapabilities(_freqrange,_freqrange)
-        _rfinfopkt=FRONTEND.RFInfoPkt('',0.0,0.0,0.0,False,_sensorinfo,[],_rfcapabilities,[])
+        _antennainfo    = FRONTEND.AntennaInfo('','','','')
+        _freqrange      = FRONTEND.FreqRange(0,0,[])
+        _feedinfo       = FRONTEND.FeedInfo('','',_freqrange)
+        _sensorinfo     = FRONTEND.SensorInfo('','','',_antennainfo,_feedinfo)
+        _rfcapabilities = FRONTEND.RFCapabilities(_freqrange,_freqrange)
+        _rfinfopkt      = FRONTEND.RFInfoPkt('',0.0,0.0,0.0,False,_sensorinfo,[],_rfcapabilities,[])
 
         self._baseLog.info("<-- get_rfinfo_pkt()")
 
@@ -569,7 +624,18 @@ class AVS4000_i(AVS4000_base):
         self._baseLog.info("    tuner_id<{}>".format(tuner_id))
 
         try:
+            #
+            # The following commented code was put here to make sure that the
+            # AVS4000Transceiver software was not connecting to the data port
+            #
+            # FIXME: This should be removed later
+            #
+            #the_level = self.devices_[tuner_id].get_loglevel()
+            #self.devices_[tuner_id].set_loglevel(logging.DEBUG)
+
             self.devices_[tuner_id].enable()
+
+            #self.devices_[tuner_id].set_loglevel(the_level)
 
         except RuntimeError as the_error:
             self._baseLog.error("Unable to start because: <{}>".format(str(the_error)))
@@ -635,15 +701,22 @@ class AVS4000_i(AVS4000_base):
         the_center_frequency = request.center_frequency
         the_sampe_rate       = request.sample_rate
 
-
         try:
             #
             # Send the tune request to the device
-            #    I am mapping the tuner id directly to how the devices are found and dded to the
+            #    I am mapping the tuner id directly to how the devices are found and added to the
             #    devices_ map.  As an example the first device found has id 0, and the next device
             #    found has turner id 1, etc.
             #
             self.devices_[tuner_id].set_tune(the_center_frequency, the_bandwidth, the_sampe_rate)
+            
+            #
+            # Tell the transceiver whether it should read the data or let a component make the 
+            # TCP/IP connection to the device controller
+            #
+            # FIXME: This should be tied to a Property
+            #
+            self.devices_[tuner_id].set_read_data(False)
 
             #
             # Update internal status information
@@ -652,8 +725,6 @@ class AVS4000_i(AVS4000_base):
             fts.center_frequency = the_center_frequency
             fts.sample_rate      = the_sampe_rate
             fts.complex          = True
-
-
 
         except RuntimeError as the_error:
             self._baseLog.error("Tune failed, because: {}".format(str(the_error)))
