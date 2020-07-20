@@ -133,8 +133,8 @@ False: Does not need control and can just attach to any currently tasked device 
     </struct>
     <structvalue>
       <simpleref refid="avs4000_output_configuration::tuner_number" value="0"/>
-      <simpleref refid="avs4000_output_configuration::output_format" value="&quot;COMPLEX_Format&quot;"/>
-      <simpleref refid="avs4000_output_configuration::output_source" value=""/>
+      <simpleref refid="avs4000_output_configuration::output_format" value="VITA49_Format"/>
+      <simpleref refid="avs4000_output_configuration::output_source" value="TCP_Source"/>
     </structvalue>
     <configurationkind kindtype="property"/>
   </structsequence>

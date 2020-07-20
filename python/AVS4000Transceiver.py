@@ -300,7 +300,8 @@ class DeviceManager:
                             the_address,
                             the_serial_number,
                             the_model,
-                            the_type
+                            the_type,
+                            logging.DEBUG
                         )
 
                     the_map[the_index] = the_controller
@@ -375,32 +376,41 @@ class DeviceController:
         self.logger_ = logging.getLogger('AVS4000Transceiver.DeviceManager')
         self.logger_.setLevel(loglevel)
 
-        self.device_number_    = int(the_device_number)
-        self.address_          = the_address
-        self.ready_            = False
-        self.model_            = the_model
-        self.device_type_      = the_type
-        self.serial_number_    = the_serial_number
+        #
+        # Device Manager parameters.
+        #
+        self.device_number_    = int(the_device_number) # The device number zero based
+        self.address_          = the_address            # FIXME: removed in latest driver
+        self.ready_            = False                  # What state the physical device is in, True means usable.
+        self.model_            = the_model              # What the model is,
+        self.device_type_      = the_type               # Should always be USB
+        self.serial_number_    = the_serial_number      # The serial number pulled from the device
 
-        self.host_             = "localhost"
-        self.control_port_     = BASE_CONTROL_PORT + self.device_number_
-        self.data_port_        = BASE_RECEIVE_PORT + self.device_number_
-        self.stream_id_        = "avs4000_{:03d}_{:03d}".format(self.device_number_, 0)
-        self.control_socket_   = None
-        self.data_socket_      = None
-        self.data_lock_        = threading.Lock() # See Note 1.
+        #
+        # Device Controller parameters:
+        #
+        self.host_             = "localhost"                               # What host controller is on
+        self.control_port_     = BASE_CONTROL_PORT + self.device_number_   # The control port to use
+        self.data_port_        = BASE_RECEIVE_PORT + self.device_number_   # The data port to read from
+        self.stream_id_        = "avs4000_{:03d}_{:03d}".format(self.device_number_, 0) # stream_id for data flow
+        self.control_socket_   = None                                      # Socket attached to control port
+        self.data_socket_      = None                                      # Socket attached to data port
+        self.data_lock_        = threading.Lock()                          # See Note 1.
 
-        self.sample_rate_      = 0
-        self.center_frequency_ = 0
-        self.bandwidth_        = None
-        self.output_format_    = COMPLEXOutputFormat
-        self.rx_status_        = None
-        self.allocation_id_    = ''
+        #
+        # RX Tuning parameters
+        #
+        self.sample_rate_      = 0                         # Donot base off of bandwidth because Complex data
+        self.center_frequency_ = 0                         # Where to tune the radio
+        self.bandwidth_        = None                      # Should always be 0, as bandwidth equals sample_rate
+        self.output_format_    = COMPLEXOutputFormat       # What kind of data will be written out
+        self.rx_status_        = None                      # Dictionary containing status of receiver.
+        self.allocation_id_    = ''                        # REDHAWK specific.
 
-        self.change_flag_      = False
-        self.read_data_        = True
+        self.change_flag_      = False                     # Has the user changed the RX Tuning parameters.
+        self.read_data_        = True                      # Determines if this object will attach to data_port_
 
-        self.buffer_           = bytearray(1024 * 512)
+        self.buffer_           = bytearray(1024 * 512)     # How much data to allocate for reads from data_port
 
     def __str__(self):
         """
@@ -420,6 +430,8 @@ class DeviceController:
                      "host           : {}\n"\
                      "control port   : {}\n"\
                      "data port      : {}\n"\
+                     "output_format  : {}\n"\
+                     "read_data      : {}\n"\
                      "stream id      : {}\n".format\
             (
                 self.device_number_,
@@ -433,6 +445,8 @@ class DeviceController:
                 self.host_,
                 self.control_port_,
                 self.data_port_,
+                self.output_format_,
+                self.read_data_,
                 self.stream_id_
             )
 
@@ -1072,6 +1086,9 @@ class DeviceController:
     def get_loglevel(self):
         return self.logger_.getEffectiveLevel()
 
+    def get_read_data(self):
+        return self.read_data_
+
     def changed(self):
         the_result = self.change_flag_
         self.change_flag_ = False
@@ -1086,7 +1103,7 @@ class DeviceController:
     def set_loglevel(self, the_level):
         self.logger_.setLevel(the_level)
 
-    def setOutputFormat(self, the_type):
+    def set_output_format(self, the_type):
         self.logger_.debug("--> setOutputFormat()")
         self.logger_.debug("    the_type <{}>".format(the_type))
 

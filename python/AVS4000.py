@@ -51,17 +51,40 @@ class AVS4000_i(AVS4000_base):
         self.devices_ = self.dm_.get_controllers()
 
         #
-        # FIXME: Need to make sure all of the controllers are set to the proper output type as
-        #        specified by the default value identified in the IDE.
-        #
-        #for index in self.devices_.keys():
-        #    .....
-        #    self.devices_[index].setOutputFormat()
-
-        #
         # Setup and property listeners
         #
         self.addPropertyChangeListener("avs4000_output_configuration", self.avs4000_output_configuration_changed)
+
+        #
+        # NOTE: The property structs have been created already, so I need to make sure to configure the devices
+        #       created with the appropriate configuration.
+        #
+        for configuration in self.avs4000_output_configuration:
+            self._baseLog.debug("    type <{}>, configuration <{}>".format(type(configuration), configuration))
+            tuner_number = configuration.tuner_number
+            output_source = configuration.output_source
+            output_format = configuration.output_format
+
+            self._baseLog.debug\
+                (
+                    "    \n"\
+                    "tuner_number <{}>\n"\
+                    "output_source <{}>\n"\
+                    "output_format <{}>"\
+                    .format(tuner_number, output_source, output_format)
+                )
+
+            if int(tuner_number) in self.devices_:
+                self._baseLog.debug("    Updating device configuration.")
+                if output_format == enums.avs4000_output_configuration__.output_format.VITA49:
+                    self.devices_[tuner_number].set_output_format(AVS4000Transceiver.VITA49OutputFormat)
+                else:
+                    self.devices_[tuner_number].set_output_format(AVS4000Transceiver.COMPLEXOutputFormat)
+
+                if output_source == enums.avs4000_output_configuration__.output_source.TCP:
+                    self.devices_[tuner_number].set_read_data(False)
+                else:
+                    self.devices_[tuner_number].set_read_data(True)
 
         #
         # Identify the number of devices found.
@@ -84,6 +107,7 @@ class AVS4000_i(AVS4000_base):
 
         for tuner_id in self.devices_.keys():
             self.devices_[tuner_id].setup()
+            self._baseLog.debug("    {}".format(self.devices_[tuner_id]))
 
         super(AVS4000_i, self).start()
 
@@ -120,13 +144,33 @@ class AVS4000_i(AVS4000_base):
         for index in range(0, len(newval)):
             the_tuner  = newval[index].tuner_number
             the_format = newval[index].output_format
+            the_source = newval[index].output_source
 
             if the_tuner < len(self.devices_):
+                #
+                # What format the device should send the data:
+                #  COMPLEX:  Data will be pushed out the dataShort_out port as 16bit I, 16bit Q Complex samples
+                #  VITA49:   Data will be pushed out the dataVITA49_out port as VITA49.2 packets.
+                #
+                # NOTE:
+                #   Currently there are no BULKIO VITA49 components to read this data.
+                #
                 if the_format == enums.avs4000_output_configuration__.output_format.COMPLEX:
-                    self.devices_[the_tuner].setOutputFormat(AVS4000Transceiver.COMPLEXOutputFormat)
+                    self.devices_[the_tuner].set_output_format(AVS4000Transceiver.COMPLEXOutputFormat)
 
                 if the_format == enums.avs4000_output_configuration__.output_format.VITA49:
-                    self.devices_[the_tuner].setOutputFormat(AVS4000Transceiver.VITA49OutputFormat)
+                    self.devices_[the_tuner].set_output_format(AVS4000Transceiver.VITA49OutputFormat)
+
+                #
+                # Where will the data come from:
+                #   TCP:     A component will have to read from the avs4000d TCP port
+                #   BULKIO: A component will read from the standard bulkio port (see output_format)
+                #
+                if the_source == enums.avs4000_output_configuration__.output_source.BULKIO:
+                    self.devices_[the_tuner].set_read_data(True)
+
+                if the_source == enums.avs4000_output_configuration__.output_source.TCP:
+                    self.devices_[the_tuner].set_read_data(False)
             else:
                 self._baseLog.error("Ignoring request to set output format for tuner <{}>".format(the_tuner))
 
@@ -306,12 +350,19 @@ class AVS4000_i(AVS4000_base):
         #
         # This should be a configurable parameter!
         # 
-        return NOOP
-
         self._baseLog.debug("--> process()")
 
         for index in self.devices_:
             streamID = self.devices_[index].get_stream_id()
+
+            #
+            # If the device was setup to NOT read data from avs4000d device controller then
+            # return NOOP to indicate no data.
+            #
+            if self.devices_[index].get_read_data() is False:
+                self._baseLog.debug("    read_data <FALSE>")
+                self._baseLog.debug("<-- process()")
+                return NOOP
 
             if self.devices_[index].get_outpt_format() == AVS4000Transceiver.COMPLEXOutputFormat:
                 data = self.devices_[index].get_complex_data()
@@ -540,6 +591,7 @@ class AVS4000_i(AVS4000_base):
         self._baseLog.info("--> setTunerOutputSampleRate()")
         self._baseLog.info("    allocation_id <{}>, sr <{}>".format(allocation_id, sr))
 
+    def setTunerOutputSampleRate(self,allocation_id, sr):
         idx = self.getTunerMapping(allocation_id)
 
         self._baseLog.info("    idx <{}>".format(idx))

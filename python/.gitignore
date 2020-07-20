@@ -3,10 +3,14 @@ Makefile
 Makefile.in
 aclocal.m4
 autom4te/
+autom4te.cache/
+AVS4000.py.orig
+AVS4000_base.py.orig
 config.log
 config.status
 configure
 install-sh
 missing
-.md5sums
+.md5*
+.*.swp
 
