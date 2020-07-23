@@ -386,7 +386,7 @@ class AVS4000_i(AVS4000_base):
                 self.port_dataShort_out.pushPacket(data, utcNow, False, streamID)
 
             else:
-                data = self.devices_[index].get_v49_data()
+                data = self.devices_[index].get_vita49_data()
 
                 if data is None:
                     self._baseLog.debug("   data is None")

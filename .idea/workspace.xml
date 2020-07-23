@@ -2,20 +2,19 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c9535643-4b8f-4d6f-bbe9-9d6b77b8837d" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/python/Vita49.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/AVS4000.prf.xml" beforeDir="false" afterPath="$PROJECT_DIR$/AVS4000.prf.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/python/.md5sums" beforeDir="false" afterPath="$PROJECT_DIR$/python/.md5sums" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/python/AVS4000.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/AVS4000.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/python/AVS4000Transceiver.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/AVS4000Transceiver.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/python/AVS4000_base.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/AVS4000_base.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/python/AVS4000_base.py.orig" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/python/Vita49.py" beforeDir="false" afterPath="$PROJECT_DIR$/python/Vita49.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/python/test_vita59.py" beforeDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FavoritesManager">
+    <favorites_list name="AVS4000" />
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
@@ -28,11 +27,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/python/AVS4000.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="255">
-              <caret line="67" column="31" selection-start-line="67" selection-start-column="31" selection-end-line="67" selection-end-column="31" />
+              <caret line="389" lean-forward="true" selection-start-line="389" selection-end-line="389" />
               <folding>
                 <element signature="e#71#108#0" expanded="true" />
               </folding>
@@ -43,10 +42,43 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/python/AVS4000Transceiver.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="240">
-              <caret line="226" column="21" lean-forward="true" selection-start-line="226" selection-start-column="21" selection-end-line="226" selection-end-column="21" />
+            <state relative-caret-position="135">
+              <caret line="9" selection-start-line="9" selection-end-line="9" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/python/Vita49.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="300">
+              <caret line="20" column="38" selection-start-line="20" selection-start-column="38" selection-end-line="20" selection-end-column="38" />
               <folding>
-                <element signature="e#31#44#0" expanded="true" />
+                <element signature="e#0#13#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/python/test_vita49.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="165">
+              <caret line="26" column="18" selection-start-line="26" selection-start-column="18" selection-end-line="26" selection-end-column="18" />
+              <folding>
+                <element signature="e#0#15#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/python/test_avs400transceiver.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="255">
+              <caret line="17" lean-forward="true" selection-start-line="17" selection-end-line="17" />
+              <folding>
+                <element signature="e#0#25#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -55,34 +87,10 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$USER_HOME$/projects/avid/python/process_vita49.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="225">
-              <caret line="48" column="62" selection-start-line="48" selection-start-column="62" selection-end-line="48" selection-end-column="62" />
+            <state relative-caret-position="442">
+              <caret line="137" column="25" selection-start-line="137" selection-start-column="25" selection-end-line="137" selection-end-column="25" />
               <folding>
                 <element signature="e#0#13#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/python/Vita49.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-879">
-              <caret line="137" column="24" selection-start-line="137" selection-start-column="24" selection-end-line="137" selection-end-column="24" />
-              <folding>
-                <element signature="e#0#13#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/python/test_vita59.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="396">
-              <caret line="109" column="4" selection-start-line="109" selection-start-column="4" selection-end-line="109" selection-end-column="4" />
-              <folding>
-                <element signature="e#0#15#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -106,12 +114,14 @@
         <option value="$USER_HOME$/projects/avid/test_transfer.py" />
         <option value="$USER_HOME$/projects/avid/python/test_transfer.py" />
         <option value="$PROJECT_DIR$/python/AVS4000_base.py" />
-        <option value="$PROJECT_DIR$/python/AVS4000Transceiver.py" />
         <option value="$PROJECT_DIR$/python/AVS4000.py" />
         <option value="$USER_HOME$/projects/avid/python/process_vita49.py" />
         <option value="$PROJECT_DIR$/python/AVS400Vita49.py" />
-        <option value="$PROJECT_DIR$/python/Vita49.py" />
         <option value="$PROJECT_DIR$/python/test_vita59.py" />
+        <option value="$PROJECT_DIR$/python/test_vita49.py" />
+        <option value="$PROJECT_DIR$/python/Vita49.py" />
+        <option value="$PROJECT_DIR$/python/test_avs400transceiver.py" />
+        <option value="$PROJECT_DIR$/python/AVS4000Transceiver.py" />
       </list>
     </option>
   </component>
@@ -225,17 +235,17 @@
     <frame x="-4" y="81" width="1642" height="929" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info id="Favorites" order="0" side_tool="true" />
-      <window_info content_ui="combo" id="Project" order="1" sideWeight="0.4957806" visible="true" weight="0.19962803" />
-      <window_info id="Structure" order="2" sideWeight="0.5042194" side_tool="true" visible="true" weight="0.19962803" />
+      <window_info id="Favorites" order="0" sideWeight="0.5037975" side_tool="true" weight="0.19962803" />
+      <window_info content_ui="combo" id="Project" order="1" sideWeight="0.49622643" visible="true" weight="0.19962803" />
+      <window_info id="Structure" order="2" sideWeight="0.50377357" side_tool="true" visible="true" weight="0.19962803" />
       <window_info anchor="bottom" id="Terminal" order="0" weight="0.32911393" />
-      <window_info anchor="bottom" id="Event Log" order="1" sideWeight="0.5015499" side_tool="true" weight="0.32911393" />
-      <window_info anchor="bottom" id="Python Console" order="2" sideWeight="0.4984501" weight="0.32911393" />
+      <window_info anchor="bottom" id="Event Log" order="1" sideWeight="0.5015499" side_tool="true" visible="true" weight="0.32911393" />
+      <window_info active="true" anchor="bottom" id="Python Console" order="2" sideWeight="0.4984501" visible="true" weight="0.32911393" />
       <window_info anchor="bottom" id="Message" order="3" />
       <window_info anchor="bottom" id="Find" order="4" weight="0.3278481" />
       <window_info anchor="bottom" id="Version Control" order="5" />
       <window_info anchor="bottom" id="Run" order="6" />
-      <window_info active="true" anchor="bottom" id="Debug" order="7" visible="true" weight="0.4" />
+      <window_info anchor="bottom" id="Debug" order="7" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="8" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="9" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="10" sideWeight="0.4984501" weight="0.32911393" />
@@ -256,11 +266,6 @@
           <url>file://$PROJECT_DIR$/../assets/sdr/devices/MSDD/python/MSDD_base.py</url>
           <line>44</line>
           <option name="timeStamp" value="3" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/python/test_vita59.py</url>
-          <line>31</line>
-          <option name="timeStamp" value="5" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
@@ -425,26 +430,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/python/AVS4000.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="67" column="31" selection-start-line="67" selection-start-column="31" selection-end-line="67" selection-end-column="31" />
-          <folding>
-            <element signature="e#71#108#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/python/AVS4000Transceiver.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="226" column="21" lean-forward="true" selection-start-line="226" selection-start-column="21" selection-end-line="226" selection-end-column="21" />
-          <folding>
-            <element signature="e#31#44#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file:///data/software/czimmerman/phy-2.7-gpu/lib/python2.7/types.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="167">
@@ -454,18 +439,8 @@
     </entry>
     <entry file="file://$USER_HOME$/projects/avid/python/process_vita49.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="225">
-          <caret line="48" column="62" selection-start-line="48" selection-start-column="62" selection-end-line="48" selection-end-column="62" />
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/python/Vita49.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-879">
-          <caret line="137" column="24" selection-start-line="137" selection-start-column="24" selection-end-line="137" selection-end-column="24" />
+        <state relative-caret-position="442">
+          <caret line="137" column="25" selection-start-line="137" selection-start-column="25" selection-end-line="137" selection-end-column="25" />
           <folding>
             <element signature="e#0#13#0" expanded="true" />
           </folding>
@@ -474,10 +449,57 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/python/test_vita59.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="396">
-          <caret line="109" column="4" selection-start-line="109" selection-start-column="4" selection-end-line="109" selection-end-column="4" />
+        <state relative-caret-position="180">
+          <caret line="12" column="25" selection-start-line="12" selection-start-column="25" selection-end-line="12" selection-end-column="25" />
           <folding>
             <element signature="e#0#15#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/python/test_vita49.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="165">
+          <caret line="26" column="18" selection-start-line="26" selection-start-column="18" selection-end-line="26" selection-end-column="18" />
+          <folding>
+            <element signature="e#0#15#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/python/Vita49.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="300">
+          <caret line="20" column="38" selection-start-line="20" selection-start-column="38" selection-end-line="20" selection-end-column="38" />
+          <folding>
+            <element signature="e#0#13#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/python/test_avs400transceiver.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="255">
+          <caret line="17" lean-forward="true" selection-start-line="17" selection-end-line="17" />
+          <folding>
+            <element signature="e#0#25#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/python/AVS4000Transceiver.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="135">
+          <caret line="9" selection-start-line="9" selection-end-line="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/python/AVS4000.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="255">
+          <caret line="389" lean-forward="true" selection-start-line="389" selection-end-line="389" />
+          <folding>
+            <element signature="e#71#108#0" expanded="true" />
           </folding>
         </state>
       </provider>

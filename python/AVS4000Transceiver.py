@@ -7,6 +7,8 @@ import threading
 import time
 import struct
 import logging
+import Vita49
+
 
 RXType = 'RX'
 TXType = 'TX'
@@ -14,12 +16,14 @@ TXType = 'TX'
 COMPLEXOutputFormat = 'Complex'
 VITA49OutputFormat  = 'Vita49'
 
+
 BASE_CONTROL_PORT = 12900
 BASE_RECEIVE_PORT = 12700
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s @ %(lineno)d')
 
 module_logger = logging.getLogger('AVS4000Transceiver')
+
 
 """
 RX Use Cases:
@@ -216,6 +220,7 @@ class DeviceManager:
     This class represents the Device Manager (DM) provided by the AVS4000 daemon.  The DM, is
     responsible for manageing all of the Device Controllers (DC)'s present.
     """
+
     def __init__(self, the_host='localhost', the_port=BASE_CONTROL_PORT, loglevel=logging.INFO):
         """
 
@@ -355,7 +360,11 @@ class DeviceManager:
 
 class DeviceController:
     """
+    This class is intended to communicate with the AVS4000 daemons device controller software.
     """
+
+    _expected_shorts_          = 4080
+    _vita49_payload_unpack_str = 'h' * 4080
 
     def __init__(self, the_device_number, the_address, the_serial_number, the_model, the_type, loglevel=logging.INFO):
         """
@@ -411,6 +420,7 @@ class DeviceController:
         self.read_data_        = True                      # Determines if this object will attach to data_port_
 
         self.buffer_           = bytearray(1024 * 512)     # How much data to allocate for reads from data_port
+        self.vita49_buffer_    = bytearray(8192)           # One packet at a time for now.
 
     def __str__(self):
         """
@@ -1014,18 +1024,26 @@ class DeviceController:
         return None
 
 
-    def get_v49_data(self):
+    def get_vita49_data(self):
         """
+        This method will pull data from the data socket, and return a tuple, that contains the complex data samples,
+        and a Vita49 object.
+
+        Notes:
+          This method does not handle synchronizing to the Vita49 FAW it expects that byte 0 is the start of
+          the packet.  Therefore if there are any buffer overflows on the daemon, then no data will be returned.
 
         :return:
+            == None, no data
+            != None, A Vita49 object, Array of Complex {unsigned 16 bit I, unsigned 16 bit Q}
         """
         self.logger_.debug("--> get_v49_data()")
 
-        view = memoryview(self.buffer_)
+        view = memoryview(self.vita49_buffer_)
 
-        toread = len(self.buffer_)
+        toread = len(self.vita49_buffer_)
 
-        self.logger_.debug("   Waiting for lock")
+        self.logger_.debug("    Waiting for lock")
         with self.data_lock_:
             if self.data_socket_ is not None:
                 while toread > 0:
@@ -1035,7 +1053,8 @@ class DeviceController:
                         self.logger_.debug("    Received nbytes <{}>".format(nbytes))
                     except socket.error as the_error:
                         self.logger_.debug("    Recieved <{}>".format(str(the_error)))
-                        return None
+                        self.logger_.debug("<-- get_v49_data()")
+                        return None, None
 
                     #
                     # Added this in the instance when the data socket is closed by the device controller
@@ -1043,21 +1062,91 @@ class DeviceController:
                     # the recv_into to return a 0.
                     #
                     if nbytes == 0:
+                        self.logger_.debug("    Read returned back 0 bytes, indicating data socket closed.")
                         self.logger_.debug("<-- get_v49_data()")
-                        return None
+                        return None, None
 
                     view = view[nbytes:] # slicing views is cheap
                     toread -= nbytes
+                #
+                # The following is used to unpack,
+                #   vrl        = bytes[0 - 7]
+                #   vrt header = bytes[8 - 28]
+                #
+                the_vrl = Vita49.VRL\
+                    (
+                        self.vita49_buffer_[Vita49.VRL_OFFSET:Vita49.VRL_OFFSET + Vita49.VRL.SIZE],
+                        Vita49.LITTLE_ENDIAN
+                    )
 
+                the_vrt = Vita49.VRT\
+                    (
+                        self.vita49_buffer_[Vita49.VRT_OFFSET:Vita49.VRT_OFFSET + Vita49.VRT.HDR_SIZE],
+                        Vita49.LITTLE_ENDIAN
+                    )
+
+                if the_vrl.faw() != Vita49.VRL.EXPECTED_FAW:
+                    self.logger_.debug("    {} = {}".format(the_vrl.faw(), Vita49.VRL.EXPECTED_FAW))
+                    self.logger_.debug\
+                         (
+                            "    Invalid faw <{0:#010x}>, VRL: \n<{1}>, \nEXPECTED <{2:#010x}>".format
+                            (
+                                the_vrl.faw(),
+                                the_vrl,
+                                Vita49.VRL.EXPECTED_FAW
+                            )
+                        )
+                    self.logger_.debug("<-- get_v49_data()")
+                    return None, None
+
+                if the_vrt.packet_size() != Vita49.VRT.EXPECTED_PACKET_SIZE:
+                    self.logger_.debug("    Invalid packet_size, VRL: <{}>".format(the_vrt))
+                    self.logger_.debug("<-- get_v49_data()")
+                    return None, None
+
+                #
+                # Convert the buffer to unsigned short 16 Complex data, starting at 28 bytes from beginning of the
+                # buffer.
+                #  the_num_shorts should always be 4090.
+                #  the_buffer_end is where payload stops and VEND begins.
+                #
+                #  Need to set the end of the buffer based upon that number otherwise the unpack will complain.
+                #
+                the_num_shorts = the_vrt.number_payload_words() * 2
+                the_buffer_end = Vita49.VRT_PAYLOAD_OFFSET + (the_vrt.number_payload_words() * 4)
+
+                if (the_num_shorts != self._expected_shorts_):
+                    self.logger_.debug\
+                        (
+                            "    packet_size <{}>, buffer size <{}>, the_num_shorts <{}>".format
+                            (
+                                the_vrt.number_payload_words(),
+                                len(self.vita49_buffer_[Vita49.VRT_PAYLOAD_OFFSET:the_buffer_end]),
+                                the_num_shorts
+                            )
+                        )
+
+                the_list = struct.unpack\
+                    (
+                        self._vita49_payload_unpack_str,
+                        self.vita49_buffer_[Vita49.VRT_PAYLOAD_OFFSET:the_buffer_end]
+                    )
+
+                self.logger_.debug("    Good data")
                 self.logger_.debug("<-- get_v49_data()")
-                return self.buffer_
+                return the_vrt, the_list
 
             else:
+                self.logger_.debug("    data_socket_ == None")
                 self.logger_.debug("<-- get_v49_data()")
-                return None
+                return None, None
 
+        #
+        # Here for completeness
+        #
+        self.logger_.debug("    while loop failed.")
         self.logger_.debug("<-- get_v49_data()")
-        return None
+        return None, None
 
     def get_port(self):
         return(self.data_port_)

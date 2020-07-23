@@ -12,14 +12,13 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(leve
 
 module_logger = logging.getLogger('Vita49')
 
-VRL_OFFSET         = 0 # Number of bytes from start of frame VRL is located
-VRT_OFFSET         = 8 # Number of bytes from start of frame VRT Header is located
+VRL_OFFSET          = 0 # Number of bytes from start of frame VRL is located
+VRT_OFFSET          = 8 # Number of bytes from start of frame VRT Header is located
 VRT_PAYLOAD_OFFSET = 28 # Number of bytes from start of VRL + VRT frame payload in bytes.
 
-
 class VRL:
-    EXPECTED_FAW         = b'VRLP'
-    EXPECTED_FEND        = b'VEND'
+    EXPECTED_FAW         = 0x56524c50 # VRLP, in big endian format
+    EXPECTED_FEND        = 0x56454E44 # VEND, in big endian format
     EXPECTED_FRAME_SIZE  = 0x800
 
     SIZE        = 8    # Number of bytes in VRL Header.
@@ -114,13 +113,14 @@ class VRT:
     STREAM_ID_OFFSET      = 1 # int[1], Stream ID
     IST_OFFSET            = 2 # int[2], Integer Seconds Timestamp
     FST_MSW_OFFSET        = 3 # int[3], Fractional Timestam  MSW
-    FST_LSW_OFFSET        = 3 # int[3], Fractional Timestam  MSW
+    FST_LSW_OFFSET        = 4 # int[3], Fractional Timestam  MSW
 
     EXPECTED_PACKET_TYPE = 0x1
     EXPECTED_C           = 0x0
     EXPECTED_T           = 0x0
     EXPECTED_TSI         = 0x1
     EXPECTED_TSF         = 0x1
+    EXPECTED_PACKET_SIZE = 0x7FD # 2045 Words/2045 Complex.
 
     _packet_type_shift_ = 28
     _c_mask_            = 0x08000000
@@ -166,6 +166,24 @@ class VRT:
 
         self.logger_.debug("<-- __init__()")
 
+    def __str__(self):
+        the_string = \
+            "header     <{0:#010x}>\n"\
+            "stream_id  <{1:#010x}>\n"\
+            "ist        <{2:#010x}>\n" \
+            "fst_msw    <{3:#010x}>\n" \
+            "fst_lsw    <{4:#010x}>\n"\
+            .format\
+                (
+                    self.header_,
+                    self.stream_id_,
+                    self.ist_,
+                    self.fst_msw_,
+                    self.fst_lsw_
+                )
+
+        return the_string
+
     def header(self):
         return self.header_
 
@@ -194,11 +212,23 @@ class VRT:
         return the_value
 
     def packet_count(self):
+        """
+        Returns the current packet count, this value will roll over as it is only 4 bits in length.
+
+        :return:
+            integer representing the packet count.
+        """
         the_value = (self.header_ & self._pkt_count_mask_) >> self._pkt_count_shift_
         return(the_value)
 
     def packet_size(self):
-        the_value = self.header_& self._pkt_size_mask_
+        """
+        Returns the size of the VRT packet in 32 bit/4 Byte words
+
+        :return:
+            An integer
+        """
+        the_value = self.header_ & self._pkt_size_mask_
         return(the_value)
 
     def stream_id(self):
@@ -216,3 +246,9 @@ class VRT:
     def payload(self, the_buffer):
         return
 
+    def number_payload_words(self):
+        """
+        This method will return the number of 32bit works contained in the payload
+        :return:
+        """
+        return self.packet_size() - (self.HDR_SIZE / 4)
