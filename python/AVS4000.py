@@ -41,9 +41,10 @@ class AVS4000_i(AVS4000_base):
         """
         self._baseLog.info("--> constructor()")
         
-        self.host_    = 'localhost'
-        self.devices_ = {}
-        self.dm_      = AVS4000Transceiver.DeviceManager(the_host=self.host_)
+        self.host_                 = 'localhost'
+        self.devices_              = {}
+        self.dm_                   = AVS4000Transceiver.DeviceManager(the_host=self.host_)
+        self.expected_frame_count_ = -1
 
         #
         # Query the number of controllers available
@@ -82,9 +83,9 @@ class AVS4000_i(AVS4000_base):
                     self.devices_[tuner_number].set_output_format(AVS4000Transceiver.COMPLEXOutputFormat)
 
                 if output_source == enums.avs4000_output_configuration__.output_source.TCP:
-                    self.devices_[tuner_number].set_read_data(False)
+                    self.devices_[tuner_number].set_read_data_flag(False)
                 else:
-                    self.devices_[tuner_number].set_read_data(True)
+                    self.devices_[tuner_number].set_read_data_flag(True)
 
         #
         # Identify the number of devices found.
@@ -107,7 +108,11 @@ class AVS4000_i(AVS4000_base):
 
         for tuner_id in self.devices_.keys():
             self.devices_[tuner_id].setup()
-            self._baseLog.debug("    {}".format(self.devices_[tuner_id]))
+
+            #
+            # Display how the devices are configured by default.
+            #
+            self._baseLog.info("    {}".format(self.devices_[tuner_id]))
 
         super(AVS4000_i, self).start()
 
@@ -149,11 +154,16 @@ class AVS4000_i(AVS4000_base):
             if the_tuner < len(self.devices_):
                 #
                 # What format the device should send the data:
-                #  COMPLEX:  Data will be pushed out the dataShort_out port as 16bit I, 16bit Q Complex samples
-                #  VITA49:   Data will be pushed out the dataVITA49_out port as VITA49.2 packets.
+                #  COMPLEX:  Data will be pushed out the dataShort_out port as 16bit I and Q complex samples
+                #            Timestamps will be generated from the current processor time.
+                #
+                #  VITA49:   Data will be pushed out the dataShort_out port as 16bit I and Q complex samples.
+                #            Timestampes will be generated from the integer-seconds-timestamp +
+                #            fractional_seconds_timestamp_lsw of the VRT header.
                 #
                 # NOTE:
-                #   Currently there are no BULKIO VITA49 components to read this data.
+                #   Raw VITA49 ports were removed because currently there are no BULKIO VITA49 components that
+                #   are able to read Vita49 packets.
                 #
                 if the_format == enums.avs4000_output_configuration__.output_format.COMPLEX:
                     self.devices_[the_tuner].set_output_format(AVS4000Transceiver.COMPLEXOutputFormat)
@@ -167,10 +177,10 @@ class AVS4000_i(AVS4000_base):
                 #   BULKIO: A component will read from the standard bulkio port (see output_format)
                 #
                 if the_source == enums.avs4000_output_configuration__.output_source.BULKIO:
-                    self.devices_[the_tuner].set_read_data(True)
+                    self.devices_[the_tuner].set_read_data_flag(True)
 
                 if the_source == enums.avs4000_output_configuration__.output_source.TCP:
-                    self.devices_[the_tuner].set_read_data(False)
+                    self.devices_[the_tuner].set_read_data_flag(False)
             else:
                 self._baseLog.error("Ignoring request to set output format for tuner <{}>".format(the_tuner))
 
@@ -353,19 +363,25 @@ class AVS4000_i(AVS4000_base):
         self._baseLog.debug("--> process()")
 
         for index in self.devices_:
-            streamID = self.devices_[index].get_stream_id()
+            streamID = self.devices_[index].stream_id()
 
             #
             # If the device was setup to NOT read data from avs4000d device controller then
             # return NOOP to indicate no data.
             #
-            if self.devices_[index].get_read_data() is False:
+            if self.devices_[index].read_data_flag() is False:
                 self._baseLog.debug("    read_data <FALSE>")
                 self._baseLog.debug("<-- process()")
                 return NOOP
 
-            if self.devices_[index].get_outpt_format() == AVS4000Transceiver.COMPLEXOutputFormat:
-                data = self.devices_[index].get_complex_data()
+            if self.devices_[index].output_format() == AVS4000Transceiver.COMPLEXOutputFormat:
+                """
+                Physical device is configured to prduce complex samples of unsigned short I & Q.  These
+                will be passed along to consumer via BulkIO
+                """
+                self._baseLog.debug("    Before read {:.4f}".format(time.time()))
+                data = self.devices_[index].get_data_complex()
+                self._baseLog.debug("    After  read {:.4f}".format(time.time()))
 
                 if data is None:
                     self._baseLog.debug("   data is None")
@@ -374,38 +390,92 @@ class AVS4000_i(AVS4000_base):
 
                 utcNow = bulkio.timestamp.now()
 
-                if self.devices_[index].changed():
-                    self._baseLog.info("    Pushing SRI")
+                if self.devices_[index].sri_changed():
                     sri = bulkio.sri.create(streamID)
-                    sri.xdelta = 1.0/self.devices_[index].get_sample_rate()
+                    sri.xdelta = 1.0/self.devices_[index].sample_rate()
                     sri.mode   = 1  # Tell follow on processing that the mode is complex
-
                     self.port_dataShort_out.pushSRI(sri)
 
+                    self._baseLog.info("    Pushed SRI <{}>".format(sri))
+
                 self._baseLog.debug("    streamId <{}>, len <{}>, type data[0] <{}>".format(streamID, len(data), type(data[0])))
+                self._baseLog.debug("    Before push {:.4f}".format(time.time()))
                 self.port_dataShort_out.pushPacket(data, utcNow, False, streamID)
+                self._baseLog.debug("    After  push {:.4f}".format(time.time()))
 
-            else:
-                data = self.devices_[index].get_vita49_data()
+            elif self.devices_[index].output_format() == AVS4000Transceiver.VITA49OutputFormat:
+                the_start_time = time.time()
 
-                if data is None:
-                    self._baseLog.debug("   data is None")
+                """
+                Physical device is configured to produce Vita49 Pakcets that contain complex samples unsigned short 
+                I & Q.  The samples will be extracted from the packet and passed to the consumer via BulkIO.  The
+                timestamp information in the packet will be extracted and used to calculate the timestamp.
+                """
+                self._baseLog.debug("    Before read {:.4f}".format(time.time()))
+                #
+                # NOTE:
+                #   The following line is commented out because during testing it was discovered that pushing
+                #   small packets over BULKIO caused jumping audio from the FM demod. The DeviceController object
+                #   will bundle the payload of 64 Vita49 Packets together with a signle timestamp.
+                #
+                #the_list = self.devices_[index].get_data_vita49()
+                the_list = self.devices_[index].get_data_vita49_single_timestamp()
+                self._baseLog.debug("    After  read {:.4f}".format(time.time()))
+
+                if the_list is None:
+                    self._baseLog.debug("    data is None")
                     self._baseLog.debug("<-- process()")
                     return NOOP
 
-                utcNow = bulkio.timestamp.now()
+                #
+                # Create the timestamp, because I am vita49, pull the integer portion from vrt
+                # calculate the fractional portion from the master.sampleRate.
+                #
+                # NOTE:
+                #   The value for the master.sampleRate is obtained whenever the devices tune() method is
+                #   called
+                #
+                the_master_info = self.devices_[index].master()
 
-                if self.devices_[index].changed():
-                    self._baseLog.info("    Pushing SRI")
-                    sri = bulkio.sri.create(streamID)
-                    sri.xdelta = 1.0/self.devices_[index].get_sample_rate()
-                    sri.mode   = 1  # Tell follow on processing that the mode is complex
+                for the_packet in the_list:
+                    the_vrt = the_packet.vrt_header()
 
-                    self.port_dataVITA49_out.pushSRI(sri, utcNow)
+                    the_frame_count = the_packet.vrl().frame_count()
 
-                self._baseLog.debug("    streamId <{}>, len <{}>".format(streamID, len(data)))
+                    if self.expected_frame_count_ == -1:
+                        self.expected_frame_count_ = 0
 
-                self.port_dataVITA49_out.pushPacket(data, utcNow, False, streamID)
+                    if the_frame_count != self.expected_frame_count_:
+                        self._baseLog.error("Missing frame expected {} received {}".format(self.expected_frame_count_, the_frame_count))
+                        self.expected_frame_count_ = the_frame_count + 1
+                    else:
+                        self.expected_frame_count_ += 64
+
+                    if self.expected_frame_count_ > 4095:
+                        self.expected_frame_count_ = 0
+
+                    the_data = the_packet.payload()
+                    the_fractional_seconds = the_vrt.fractional_seconds_timestamp_lsw() * (1.0 / the_master_info.sample_rate())
+                    the_timestamp = bulkio.timestamp.create(the_vrt.integer_seconds_timestamp(), the_fractional_seconds, tsrc=0)
+
+                    if self.devices_[index].sri_changed():
+                        self._baseLog.info("    Pushing SRI")
+                        sri = bulkio.sri.create(streamID)
+                        sri.xdelta = 1.0/self.devices_[index].sample_rate()
+                        sri.mode   = 1  # Tell follow on processing that the mode is complex
+
+                        self.port_dataShort_out.pushSRI(sri)
+
+                    self._baseLog.debug("    streamId <{}>, len <{}>, type data[0] <{}>".format(streamID, len(the_data), type(the_data[0])))
+                    self._baseLog.debug("    Before push {:.4f}".format(time.time()))
+                    self.port_dataShort_out.pushPacket(the_data, the_timestamp, False, streamID)
+                    self._baseLog.debug("    After  push {:.4f}".format(time.time()))
+
+                #self._baseLog.info("Total time for call <{}>".format(time.time() - the_start_time))
+            else:
+                self._baseLog.debug("    Unknown format()")
+                self._baseLog.debug("<-- process()")
+                return NOOP
 
         self._baseLog.debug("<-- process()")
         return NORMAL
@@ -562,8 +632,6 @@ class AVS4000_i(AVS4000_base):
         raise FRONTEND.NotSupportedException("getTunerReferenceSource not supported")
 
     def setTunerEnable(self,allocation_id, enable):
-        self._baseLog.info("--> setTunerEnable()")
-
         idx = self.getTunerMapping(allocation_id)
 
         if idx < 0:
@@ -578,8 +646,6 @@ class AVS4000_i(AVS4000_base):
         self._baseLog.info("<-- setTunerEnable()")
 
     def getTunerEnable(self,allocation_id):
-        self._baseLog.info("--> getTunerEnable()")
-
         idx = self.getTunerMapping(allocation_id)
         if idx < 0: raise FRONTEND.FrontendException("Invalid allocation id")
 
@@ -687,6 +753,13 @@ class AVS4000_i(AVS4000_base):
 
             self.devices_[tuner_id].enable()
 
+            #
+            # FIXME: I should create an initializtion method to centralize setting up values.
+            #
+            self.expected_frame_count_ = -1
+
+            self._baseLog.info("Device:\n{}".format(self.devices_[tuner_id]))
+
             #self.devices_[tuner_id].set_loglevel(the_level)
 
         except RuntimeError as the_error:
@@ -763,12 +836,12 @@ class AVS4000_i(AVS4000_base):
             self.devices_[tuner_id].set_tune(the_center_frequency, the_bandwidth, the_sampe_rate)
             
             #
-            # Tell the transceiver whether it should read the data or let a component make the 
-            # TCP/IP connection to the device controller
+            # NOTE:
+            #    It is no longer necessary to tell the transceiver whether it should read the data
+            #    or let a component make the TCP/IP connection to the device controller.
+            #    This is now being handled during construction or via the output_configuration change callback.
+            #    Previously had to perform the following: self.devices_[tuner_id].set_read_data(False)
             #
-            # FIXME: This should be tied to a Property
-            #
-            self.devices_[tuner_id].set_read_data(False)
 
             #
             # Update internal status information
@@ -777,6 +850,8 @@ class AVS4000_i(AVS4000_base):
             fts.center_frequency = the_center_frequency
             fts.sample_rate      = the_sampe_rate
             fts.complex          = True
+
+            self._baseLog.info("Device:\n{}".format(self.devices_[tuner_id]))
 
         except RuntimeError as the_error:
             self._baseLog.error("Tune failed, because: {}".format(str(the_error)))
@@ -805,6 +880,7 @@ class AVS4000_i(AVS4000_base):
 
         self._baseLog.info("<-- deviceDeleteTuning()")
         return True
+
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)

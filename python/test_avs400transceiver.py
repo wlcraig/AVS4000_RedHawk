@@ -5,20 +5,23 @@ import logging
 if __name__ == '__main__':
     the_device = AVS4000Transceiver.DeviceController(1, 12701, "NA", "AVS4000", "usb", logging.INFO)
 
-    the_device.setup();
+    the_device.setup()
 
-    the_device.set_read_data(True)
+    the_device.set_read_data_flag(True)
     the_device.set_output_format(AVS4000Transceiver.VITA49OutputFormat)
     the_device.set_tune(101.1e6, 0, 1e6,)
 
     the_device.enable()
 
-    for index in range(0, 10):
-        the_vrt, the_data = the_device.get_vita49_data()
+    for index in range(0, 5):
+        the_list = the_device.get_data_vita49()
 
-        if the_data is not None:
-            print("[{0:2}]: data {1}, the_vrt {2}".format(index, len(the_data), the_vrt))
+        if the_list is not None:
+            count = 0
+            for the_packet in the_list:
+                print("[{}] vrl:\n{}\n vrt\n{}".format(count, the_packet.vrl(), the_packet.vrt_header()))
+                count = count + 1
         else:
-            print()
+            print("No data returned")
 
     the_device.disable()

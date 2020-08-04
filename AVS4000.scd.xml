@@ -23,12 +23,8 @@
       <provides repid="IDL:FRONTEND/DigitalTuner:1.0" providesname="DigitalTuner_in">
         <porttype type="control"/>
       </provides>
-      <uses repid="IDL:BULKIO/dataVITA49:1.0" usesname="dataVITA49_out">
-        <description>Vita-49 data packets</description>
-        <porttype type="data"/>
-      </uses>
       <uses repid="IDL:BULKIO/dataShort:1.0" usesname="dataShort_out">
-        <description>16 bit I/Q data </description>
+        <description>This port delivers complex 16 bit I/Q data </description>
         <porttype type="data"/>
       </uses>
     </ports>
@@ -69,9 +65,6 @@
       <inheritsinterface repid="IDL:FRONTEND/AnalogTuner:1.0"/>
     </interface>
     <interface name="ProvidesPortStatisticsProvider" repid="IDL:BULKIO/ProvidesPortStatisticsProvider:1.0"/>
-    <interface name="dataVITA49" repid="IDL:BULKIO/dataVITA49:1.0">
-      <inheritsinterface repid="IDL:BULKIO/ProvidesPortStatisticsProvider:1.0"/>
-    </interface>
     <interface name="updateSRI" repid="IDL:BULKIO/updateSRI:1.0"/>
     <interface name="dataShort" repid="IDL:BULKIO/dataShort:1.0">
       <inheritsinterface repid="IDL:BULKIO/ProvidesPortStatisticsProvider:1.0"/>

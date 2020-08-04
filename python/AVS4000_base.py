@@ -61,8 +61,6 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
             self.port_RFInfo_in._portLog = self._baseLog.getChildLogger('RFInfo_in', 'ports')
             self.port_DigitalTuner_in = frontend.InDigitalTunerPort("DigitalTuner_in", self)
             self.port_DigitalTuner_in._portLog = self._baseLog.getChildLogger('DigitalTuner_in', 'ports')
-            self.port_dataVITA49_out = bulkio.OutVITA49Port("dataVITA49_out")
-            self.port_dataVITA49_out._portLog = self._baseLog.getChildLogger('dataVITA49_out', 'ports')
             self.port_dataShort_out = bulkio.OutShortPort("dataShort_out")
             self.port_dataShort_out._portLog = self._baseLog.getChildLogger('dataShort_out', 'ports')
             self.device_kind = "FRONTEND::TUNER"
@@ -117,16 +115,10 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
                                             repid="IDL:FRONTEND/DigitalTuner:1.0",
                                             type_="control")
 
-        port_dataVITA49_out = usesport(name="dataVITA49_out",
-                                       repid="IDL:BULKIO/dataVITA49:1.0",
-                                       type_="data",
-                                       description="""Vita-49 data packets"""
-                                       )
-
         port_dataShort_out = usesport(name="dataShort_out",
                                       repid="IDL:BULKIO/dataShort:1.0",
                                       type_="data",
-                                      description="""16 bit I/Q data """
+                                      description="""This port delivers complex 16 bit I/Q data """
                                       )
 
         ######################################################################
@@ -293,9 +285,13 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
                 existing_alloc_id = self.listeners[existing_alloc_id]
             self.listeners[listen_alloc_id] = existing_alloc_id
 
+
+
         def removeListener(self,listen_alloc_id):
             if self.listeners.has_key(listen_alloc_id):
                 del self.listeners[listen_alloc_id]
 
+
         def removeAllocationIdRouting(self,tuner_id):
             pass
+

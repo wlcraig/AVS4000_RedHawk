@@ -2,3 +2,7 @@
 redhawk_SCRIPTS_auto = AVS4000.py
 redhawk_DATA_auto = AVS4000Transceiver.py
 redhawk_DATA_auto += AVS4000_base.py
+redhawk_DATA_auto += Vita49.py
+redhawk_DATA_auto += avs4000transceiver_test.py
+redhawk_DATA_auto += test_avs400transceiver.py
+redhawk_DATA_auto += test_vita49.py
