@@ -3,8 +3,7 @@ import logging
 
 
 if __name__ == '__main__':
-    the_device = AVS4000Transceiver.DeviceController(1, 12701, "NA", "AVS4000", "usb", logging.INFO)
-
+    the_device = AVS4000Transceiver.DeviceController(1, 12701, "NA", "AVS4000", "usb", logging.DEBUG)
     the_device.setup()
 
     the_device.set_read_data_flag(True)
@@ -14,7 +13,7 @@ if __name__ == '__main__':
     the_device.enable()
 
     for index in range(0, 5):
-        the_list = the_device.get_data_vita49()
+        the_list = the_device.get_data_vita49_single_timestamp()
 
         if the_list is not None:
             count = 0

@@ -43,7 +43,7 @@ class AVS4000_i(AVS4000_base):
         
         self.host_                 = 'localhost'
         self.devices_              = {}
-        self.dm_                   = AVS4000Transceiver.DeviceManager(the_host=self.host_)
+        self.dm_                   = AVS4000Transceiver.DeviceManager(the_host=self.host_, loglevel=logging.DEBUG)
         self.expected_frame_count_ = -1
 
         #
@@ -437,6 +437,9 @@ class AVS4000_i(AVS4000_base):
                 #
                 the_master_info = self.devices_[index].master()
 
+                if len(the_list) != 1:
+                    self._baseLog.error("Received more than one packet!!!!")
+
                 for the_packet in the_list:
                     the_vrt = the_packet.vrt_header()
 
@@ -449,21 +452,21 @@ class AVS4000_i(AVS4000_base):
                         self._baseLog.error("Missing frame expected {} received {}".format(self.expected_frame_count_, the_frame_count))
                         self.expected_frame_count_ = the_frame_count + 1
                     else:
-                        self.expected_frame_count_ += 64
+                        self.expected_frame_count_ += 64 # FIXME: need to increment by the number of buffered packets.
 
                     if self.expected_frame_count_ > 4095:
                         self.expected_frame_count_ = 0
 
                     the_data = the_packet.payload()
-                    the_fractional_seconds = the_vrt.fractional_seconds_timestamp_lsw() * (1.0 / the_master_info.sample_rate())
+                    the_fractional_seconds = the_vrt.fractional_seconds_timestamp_lsw() * (1.0 / the_master_info.sampleRate())
                     the_timestamp = bulkio.timestamp.create(the_vrt.integer_seconds_timestamp(), the_fractional_seconds, tsrc=0)
 
                     if self.devices_[index].sri_changed():
-                        self._baseLog.info("    Pushing SRI")
                         sri = bulkio.sri.create(streamID)
                         sri.xdelta = 1.0/self.devices_[index].sample_rate()
                         sri.mode   = 1  # Tell follow on processing that the mode is complex
 
+                        self._baseLog.info("    Pushing SRI: <{}>".format(sri))
                         self.port_dataShort_out.pushSRI(sri)
 
                     self._baseLog.debug("    streamId <{}>, len <{}>, type data[0] <{}>".format(streamID, len(the_data), type(the_data[0])))
@@ -833,8 +836,10 @@ class AVS4000_i(AVS4000_base):
             #    devices_ map.  As an example the first device found has id 0, and the next device
             #    found has turner id 1, etc.
             #
+            loglevel = self.devices_[tuner_id].loglevel()
+            self.devices_[tuner_id].set_loglevel(logging.DEBUG)
             self.devices_[tuner_id].set_tune(the_center_frequency, the_bandwidth, the_sampe_rate)
-            
+            self.devices_[tuner_id].set_loglevel(loglevel)
             #
             # NOTE:
             #    It is no longer necessary to tell the transceiver whether it should read the data

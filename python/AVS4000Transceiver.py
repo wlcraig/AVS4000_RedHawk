@@ -1,12 +1,21 @@
 #!/usr/bin/env python
 
+#
+# Make sure the logging is prior to other imports so that I my basic config takes precedence
+#
+import logging
+
+MODULE_LOG_FORMAT = '%(asctime)s %(name)s.%(funcName)s %(levelname)s: %(message)s @ %(lineno)d'
+logging.basicConfig(level=logging.INFO, format=MODULE_LOG_FORMAT)
+module_logger = logging.getLogger('AVS4000Transceiver')
+
 import socket
 import json
 import array
 import threading
 import time
+import distutils.util
 import struct
-import logging
 import Vita49
 
 
@@ -18,11 +27,6 @@ VITA49OutputFormat   = 'Vita49Data'
 
 BASE_CONTROL_PORT = 12900
 BASE_RECEIVE_PORT = 12700
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s @ %(lineno)d')
-
-module_logger = logging.getLogger('AVS4000Transceiver')
-
 
 """
 RX Use Cases:
@@ -122,97 +126,892 @@ RX Use Cases:
     
 """
 
+
+class DN:
+    """
+    This classs encapsulates the information associated with the DN group defined by the
+    AVS4000 API
+    """
+
+    def __init__(self, loglevel=logging.INFO):
+        """
+        Constructor
+
+        """
+        self.logger_ = logging.getLogger('AVS4000Transceiver.DN')
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter(MODULE_LOG_FORMAT)
+        ch.setFormatter(formatter)
+        self.logger_.addHandler(ch)
+        self.logger_.setLevel(loglevel)
+        self.logger_.propagate = False
+
+        self.logger_.debug("ENTER")
+
+        self.addr_ = 0
+        self.dn_ = 0
+        self.model_ = ""
+        self.ready_ = False
+        self.sn_ = ""
+        self.type_ = ""
+
+        self.logger_.debug("LEAVE")
+
+    def __str__(self):
+
+        the_string = "DN:\n"\
+                     "  dn:    {}\n" \
+                     "  ready: {}\n" \
+                     "  model: {}\n" \
+                     "  type:  {}\n" \
+                     "  sn:    {}\n" \
+                     "  addr:  {}".format \
+                (
+                self.dn_,
+                self.ready_,
+                self.model_,
+                self.type_,
+                self.sn_,
+                self.addr_
+            )
+
+        return the_string
+
+    def config(self, **kwargs):
+        """
+        Use this to update the object.
+
+        :param kwargs:
+            Key     Type    Mode    Description
+            ---     ----    ----    -----------
+            addr    uint    RO      Device class specific addres that uniquely identifies the device.
+            dn      uint    RW      Device number for the device
+            model   string  RO      Model name for the device
+            ready   bool    RO      Ready state of the device (true=device is ready)
+            sn      string  RO      Model specific serial number for the device
+            type    string  RO      Type associated with the device
+
+        :return:
+            N/A
+        """
+        self.logger_.debug("ENTER")
+
+        for key, value in kwargs.items():
+            self.logger_.debug("key <{}>, value <{}>".format(key, value))
+
+            if key == "dn":
+                self.dn_ = value
+
+            elif key == "ready":
+                self.ready_ = value
+
+            elif key == "model":
+                self.model_ = value
+
+            elif key == "type":
+                self.type_ = value
+
+            elif key == "sn":
+                self.sn_ = value
+
+            elif key == "addr":
+                self.addr_ = value
+
+            else:
+                raise ValueError("Invalid key <{}>".format(key))
+                self.logger_.debug("LEAVE")
+
+        self.logger_.debug("LEAVE")
+
+    def update(self, the_string):
+        """
+        This is a utility method that provides a way to update the contents of the object
+        using the results returned from the control port of a device manager. It is up to the
+        caller to parse out the DN portion of the string.
+
+        Note:
+          - This update is slightly different than the other's because it doesn't make sense to process the
+             list of DN's returned back using ['get'].  It makes more sense to process a single instance of
+             a DN returned.
+
+        :param the_string:  the string representing the DN {'dn': 1, ....}
+
+        :return:
+            == True, parsed the string
+            == False, unable to parse the string
+
+        :raises RunTimeError: Unable to process the_string as a JSON object.
+
+        """
+        self.logger_.debug("ENTER")
+
+        try:
+            the_json = json.loads(the_string)
+        except Exception as the_error:
+            self.logger_.debug("LEAVE")
+            raise RuntimeError("Unable to convert string to json object, because {}".format(str(the_error)))
+
+        result = False
+        for key, value in the_json.items():
+            if key == "dn":
+                self.dn_ = value
+                result = True
+
+            if key == "ready":
+                self.ready_ = value
+                result = True
+
+            if key == "model":
+                self.model_ = value
+                result = True
+
+            if key == "type":
+                self.type_ = value
+                result = True
+
+            if key == "sn":
+                self.sn_ = value
+                result = True
+
+            if key == "addr":
+                self.addr_ = value
+                result = True
+
+        self.logger_.debug("LEAVE")
+        return result
+
+    def dn(self):
+        return self.dn_
+
+    def ready(self):
+        return self.ready_
+
+    def model(self):
+        return self.model_
+
+    def type(self):
+        return self.type_
+
+    def sn(self):
+        return self.sn_
+
+    def addr(self):
+        return self.addr_
+
+
 class Master:
     """
     This class encapsulates the information assoicated with the Master group defined by the
     AVS4000 API.
     """
-    def __init__(self, the_sample_rate, the_sample_rate_mode):
-        """
-        Represents the master group of the AVS4000
 
-        :param the_sample_rate:       The actual sample_rate, 0 means unknown
-        :param the_sample_rate_mode:  String representing mode {"Auto", "Manual"}
+    def __init__(self, loglevel=logging.INFO):
         """
-        self.sample_rate_      = the_sample_rate
-        self.sample_rate_mode_ = the_sample_rate_mode
+        Constructor
+
+        :param loglevel:  the level to use
+        """
+        self.logger_ = logging.getLogger('AVS4000Transceiver.Master')
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter(MODULE_LOG_FORMAT)
+        ch.setFormatter(formatter)
+        self.logger_.addHandler(ch)
+        self.logger_.propagate = False
+        self.logger_.setLevel(loglevel)
+
+        self.logger_.debug("ENTER")
+
+        self.sampleRate_ = 0.0
+        self.realSampleRate_ = 0.0
+        self.sampleRateMode_ = ""
+
+        self.logger_.debug("LEAVE")
 
     def __str__(self):
-        the_str = "Master:\n"\
-                  "  sample_rate      <{}>\n"\
-                  "  sample_rate_mode <{}>".format\
-            (
-                self.sample_rate_,
-                self.sample_rate_mode_
+        the_string = "Master:\n" \
+                     "  SampleRate:     {}\n" \
+                     "  RealSampleRate: {}\n" \
+                     "  SampleRateMode: {}".format \
+                (
+                self.sampleRate_,
+                self.realSampleRate_,
+                self.sampleRateMode_
             )
 
-        return the_str
+        return the_string
 
-    def sample_rate(self):
-        return self.sample_rate_
-
-    def sample_rate_mode(self):
-        return(self.sample_rate_mode_)
-
-class RxStatus:
-    """
-    This class encapsulates the status returned from a AVS4000 transciever
-
-    """
-    def __init__(self, the_string=""):
+    def config(self, **kwargs):
         """
+        Use this method to update the contents of the object, using key value pairs.
 
-        :param the_string:
+        :param kwargs:
+            Key             Type    Mode    Description
+            ---             ----    ----    -----------
+            RealSampleRate  float   RO      Sample Rate (Hz) [1e6 to 50e6]
+            SampleRate      float   RW      Sample Rate (Hz) [1e6 to 50e6]
+            SampleRateMode  string  RW      Sample Rate Mode [Auto,Manual]
+
+        :return:
+            N/A
         """
-        self.overflow_     = -1
-        self.gain_         = 0.0
-        self.overflow_     = -1
-        self.rate_         = -1
-        self.sample_count_ = -1
+        self.logger_.debug("ENTER")
+
+        for key, value in kwargs.items():
+            self.logger_.debug("    key <{}>, value<{}>".format(key, value))
+            if key == "SampleRate":
+                self.sampleRate_ = value
+
+            elif key == "SampleRateMode":
+                self.sampleRateMode_ = value
+
+            elif key == "RealSampleRate":
+                self.realSampleRate_ = value
+
+            else:
+                self.logger_.debug("<-- config()")
+                raise ValueError("Invalid key <{}>".format(key))
+
+        self.logger_.debug("LEAVE")
+
+    def update(self, the_string):
+        """
+        This is a utility method that provides a way to update the ccntents of the object
+        using the results returned from the control port of a device controller.
+
+        :param the_string:  part of the buffer returned from the request ["get", ["master"]]
+                            {
+                                'master':
+                                {
+                                'RealSampleRate': 40000000,
+                                'SampleRate': 40000000,
+                                'SampleRateMode': u'Auto'
+                                }
+                            }
+
+        :return:
+             == True, successfully decoded string
+             == False, string not valid
+
+        :raises RunTimeError: Unable to process the_string as a JSON object.
+
+        """
+        self.logger_.debug("ENTER")
 
         try:
             the_json = json.loads(the_string)
-        except Exception:
-            return
+        except Exception as the_error:
+            self.logger_.debug("LEAVE")
+            raise RuntimeError("Unable to convert string to json object, because {}".format(str(the_error)))
 
-        if len(the_json) == 2:
-            the_object = the_json[1]
+        for key, value in the_json.items():
+            if key == "master":
+                for key_1, value_1 in value.items():
+                    if key_1 == "RealSampleRate":
+                        self.realSampleRate_ = value_1
+                        result = True
 
-            if the_object.has_key('rxstat'):
-                the_rxstat = the_json['rxstat']
+                    if key_1 == "SampleRate":
+                        self.sampleRate_ = value_1
+                        result = True
 
-                if the_rxstat.haskey('Gain'):
-                    self.gain_ = the_json['rx']
+                    if key_1 == "SampleRateMode":
+                        self.sampleRateMode_ = value_1
+                        result = True
 
-                if the_rxstat.haskey('Overflow'):
-                    self.overflow_ = the_rxstat['Overflow']
+        self.logger_.debug("LEAVE")
+        return result
 
-                if the_rxstat.haskey('Rate'):
-                    self.rate_ = the_rxstat['Rate']
+    def sampleRate(self):
+        return self.sampleRate_
 
-                if the_rxstat.haskey('Sample'):
-                    self.sample_count_ = the_rxstat['Sample']
+    def sampleRateMode(self):
+        return self.sampleRateMode_
+
+    def realSampleRate(self):
+        return self.realSampleRate_
+
+
+class RX:
+    """
+    This class encapsulates the informtion associated with the RX group defined by the
+    AVS4000 API
+    """
+
+    def __init__(self, loglevel=logging.INFO):
+        """
+        Constructor
+        """
+        self.logger_ = logging.getLogger('AVS4000Transceiver.RX')
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter(MODULE_LOG_FORMAT)
+        ch.setFormatter(formatter)
+        self.logger_.addHandler(ch)
+        self.logger_.propagate = False
+        self.logger_.setLevel(loglevel)
+
+        self.logger_.debug("ENTER")
+
+        self.freq_         = 0.0
+        self.gain_         = 0
+        self.gainMode_     = ""
+        self.lbbw_         = ""
+        self.lbMode_       = ""
+        self.lbThreshold_  = 0
+        self.rfbw_         = 0
+        self.sampleRate_   = 0
+        self.startDelay_   = 0
+        self.startMode_    = ""
+        self.startUTCFrac_ = 0
+        self.startUTCInt_  = 0
+        self.userDelay_    = 0
+
+        self.logger_.debug("LEAVE")
 
     def __str__(self):
-        """
-        This method will provide a string representation of the RxStatus object.
-
-        :return:
-            A string.
-        """
-        the_string = \
-            "Gain:         <{}>\n" \
-            "Overflow:     <{}>\n" \
-            "Rate:         <{}>\n" \
-            "Sample Count: <{}>\n".format\
+        the_string = "RX:\n"\
+                     "  Freq:         {}\n"\
+                     "  Gain:         {}\n"\
+                     "  GainMode:     {}\n"\
+                     "  LBBW:         {}\n"\
+                     "  LBMode:       {}\n"\
+                     "  LBThreshold:  {}\n"\
+                     "  RFBW:         {}\n"\
+                     "  SampleRate:   {}\n"\
+                     "  StartDelay:   {}\n"\
+                     "  StartMode:    {}\n"\
+                     "  StartUTCFrac: {}\n"\
+                     "  StartUTCInt:  {}\n"\
+                     "  UserDelay:    {}".format\
                 (
-                    self.gain_,
-                    self.overflow_,
-                    self.rate_,
-                    self.sample_count_
+                self.freq_,
+                self.gain_,
+                self.gainMode_,
+                self.lbbw_,
+                self.lbMode_,
+                self.lbThreshold_,
+                self.rfbw_,
+                self.sampleRate_,
+                self.startDelay_,
+                self.startMode_,
+                self.startUTCFrac_,
+                self.startUTCInt_,
+                self.userDelay_
                 )
 
         return the_string
+
+    def config(self, **kwargs):
+        """
+        Use this method to update the contents of the object, using key value pairs.
+
+        :param kwargs:
+            Key             Type    MODE    Description
+            ---             ----    ----    -----------
+            Freq            uint    RW      Tuning Freq (Hz) [50e6 to 6e9]
+            Gain            int     RW      RF Gain (dB) [-3 to 71]
+            GainMode        string  RW      RF Gain Mode [Manual,FastAGC,SlowAGC,HybridAGC]
+            LBBW            string  RW      Low Band Bandwidth [Narrow,Wide]
+            LBMode          string  RW      Low Band Mode [Auto,Enable,Disable]
+            LBThresholdw    uint    RW      Low Band Threshold (Hz) [5e6 to 5e9]
+            RFBW            uint    RW      RF Bandwidth [100e3 to 56e6, 0=auto]
+            SampleRate      uint    RW      Sample Rate (Hz) [1e6 to 50e6]
+            StartDelay      uint    RW      Start Delay (Sec) [1 to 300]
+            StartMode       string  RW      Start Mode [Immediate,OnPPS,OnFracRoll,OnTime]
+            StartUTCFrac    uint    RW      Start UTC Fracional
+            StartUTCInt     uint    RW      Start UTC Integer (Sec)
+            UserDelay       uint    RW      User Delay
+
+        :return:
+            N/A
+        """
+        self.logger_.debug("ENTER")
+
+        for key, value in kwargs.items():
+            if key == "Freq":
+                self.freq_ = value
+
+            elif key == "Gain":
+                self.gain_ = value
+
+            elif key == "GainMode":
+                self.gainMode_ = value
+
+            elif key == "LBBW":
+                self.lbbw_ = value
+
+            elif key == "LBMode":
+                self.lbMode_ = value
+
+            elif key == "LBThreshold":
+                self.lbThreshold_ = value
+
+            elif key == "RFBW":
+                self.rfbw_ = value
+
+            elif key == "SampleRate":
+                self.sampleRate_ = value
+
+            elif key == "StartDelay":
+                self.startDelay_ = value
+
+            elif key == "StartMode":
+                self.startMode_ = value
+
+            elif key == "StartUTCFrac":
+                self.startUTCFrac_ = value
+
+            elif key == "StartUTCInt":
+                self.startUTCInt_ = value
+
+            elif key == "UserDelay":
+                self.startUTCInt_ = value
+
+            else:
+                self.logger_.debug("LEAVE")
+                raise(ValueError("Invalid Key {}".format(key)))
+
+        self.logger_.debug("LEAVE")
+
+    def update(self, the_string):
+        """
+        This is a utility method that provides a way to update the ccntents of the object
+        using the results returned from the control port of a device controller.
+
+        :param the_string:  the sub buffer returned from the request ["get", ["rxdata"]]
+                            {
+                                "rx":
+                                {
+                                    "Freq":101100000,
+                                    "Gain":59,
+                                    "GainMode":"SlowAGC",
+                                    "LBBW":"Wide",
+                                    "LBMode":"Auto",
+                                    "LBThreshold":670000000,
+                                    "RFBW":0,
+                                    "SampleRate":2000000,
+                                    "StartDelay":3,
+                                    "StartMode":"Immediate",
+                                    "StartUTCFrac":2,
+                                    "StartUTCInt":32709,
+                                    "UserDelay":1000
+                                }
+                            }
+
+        :return:
+            == True,  able to parse string
+            == False, unable to parse string
+
+        :raises RunTimeError: Unable to process the_string as a JSON object.
+        """
+
+        self.logger_.debug("ENTER")
+
+        try:
+            the_json = json.loads(the_string)
+        except Exception as the_error:
+            self.logger_.debug("LEAVE")
+            raise RuntimeError("Unable to convert string to json object, because {}".format(str(the_error)))
+
+        result = False
+        for key, value in the_json.items():
+            if key == "rx":
+                for key_1, value_1 in value.items():
+                    if key_1 == "Freq":
+                        self.freq_ = value_1
+                        result = True
+
+                    if key_1 == "Gain":
+                        self.gain_ = value_1
+                        result = True
+
+                    if key_1 == "GainMode":
+                        self.gainMode_ = value_1
+                        result = True
+
+                    if key_1 == "LBBW":
+                        self.lbbw_ = value_1
+                        result = True
+
+                    if key_1 == "LBMode":
+                        self.lbMode_ = value_1
+                        result = True
+
+                    if key_1 == "LBThreshold":
+                        self.lbThreshold_ = value_1
+                        result = True
+
+                    if key_1 == "RFBW":
+                        self.rfbw_ = value_1
+                        result = True
+
+                    if key_1 == "SampleRate":
+                        self.sampleRate_ = value_1
+                        result = True
+
+                    if key_1 == "StartDelay":
+                        self.startDelay_ = value_1
+                        result = True
+
+                    if key_1 == "StartMode":
+                        self.startMode_ = value_1
+                        result = True
+
+                    if key_1 == "StartUTCFrac":
+                        self.startUTCFrac_ = value_1
+                        result = True
+
+                    if key_1 == "StartUTCInt":
+                        self.startUTCInt_ = value_1
+                        result = True
+
+                    if key_1 == "UserDelay":
+                        self.startDelay_ = value_1
+                        result = True
+
+        self.logger_.debug("LEAVE")
+        return result
+
+class RxData:
+    """
+    This class encapsulates the information associated with the RxData group defined by the
+    AVS4000 API
+    """
+
+    def __init__(self, loglevel=logging.INFO):
+        """
+        Constructor
+        """
+
+        self.logger_ = logging.getLogger('AVS4000Transceiver.RxData')
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter(MODULE_LOG_FORMAT)
+        ch.setFormatter(formatter)
+        self.logger_.addHandler(ch)
+        self.logger_.propagate = False
+        self.logger_.setLevel(loglevel)
+
+        self.logger_.debug("ENTER")
+
+        self.conEnable_   = False
+        self.conPort_     = 12701
+        self.conType_     = "TCP"
+        self.run_         = False
+        self.testPattern_ = False
+        self.useBE_       = False
+        self.useV49_      = False
+        self.loopback_    = False
+
+        self.logger_.debug("LEAVE")
+
+    def __str__(self):
+        the_string = "RXDATA:\n"\
+                     "  ConEnable:   {}\n"\
+                     "  ConPort:     {}\n"\
+                     "  ConType:     {}\n"\
+                     "  Run:         {}\n"\
+                     "  TestPattern: {}\n"\
+                     "  UseBE:       {}\n" \
+                     "  UseV49:      {}\n"\
+                     "  loopback:    {}".format\
+            (
+                self.conEnable_,
+                self.conPort_,
+                self.conType_,
+                self.run_,
+                self.testPattern_,
+                self.useBE_,
+                self.useV49_,
+                self.loopback_
+            )
+
+        return the_string
+
+    def config(self, **kwargs):
+        """
+        Use this method to update the internal data.
+
+        :param kwargs:
+            Keys        Type    Mode    Description
+            ----        ----    ----    -----------
+            ConEnable   bool    RW      Enable/Disable Conection [true=connect,false=disconnect]
+            ConPort     uint    RW      Connection Port [0 - 0xFFFF]
+            ConType     string  RW      Connection Type [TCP]
+            Run         bool    RW      Enable/Disable RX Data [true=start,false=stop]
+            TestPattern bool    RW      Enable/Disable Test Pattern
+            UseBE       bool    RW      Enable/Disable Big Endian byte ordering for data. (Bool)
+            UseV49      bool    RW      Enable/Disable Vita 49 Packets
+            loopback    bool    RW      Enable/Disable Loopback
+
+        :return:
+            N/A
+
+        :raises ValueError:
+            Key invalid
+        """
+        self.logger_.debug("ENTER")
+
+        for key, value in kwargs.items():
+            if key == "ConEnable":
+                self.conEnable_ = value
+
+            elif key == "ConPort":
+                self.conPort_ = value
+
+            elif key == "ConType":
+                self.conType_ = value
+
+            elif key == "Run":
+                self.run_ = value
+
+            elif key == "TestPattern":
+                self.testPattern_ = value
+
+            elif key == "UseBE":
+                self.useBE_ = value
+
+            elif key == "UseV49":
+                self.useV49_ = value
+
+            elif key == "loopback":
+                self.loopback_ = value
+
+            else:
+                self.logger_.debug("LEAVE")
+                raise ValueError("Invalid Key <{}>".format(key))
+
+        self.logger_.debug("LEAVE")
+
+    def update(self, the_string):
+        """
+        This is a utility method that provides a way to update the ccntents of the object
+        using the results returned from the control port of a device controller.
+
+        :param the_string:  the sub buffer returned from the request ["get", ["rxdata"]]
+                            {
+                                "rxdata":
+                                {"
+                                    ConEnable":true,
+                                    "ConPort":12701,
+                                    "ConType":"tcp",
+                                    "Run":true,
+                                    "TestPattern":false,
+                                    "UseBE":false,
+                                    "UseV49":true,
+                                    "loopback":false
+                                }
+                            }
+
+        :return:
+            N/A
+
+        :raises RunTimeError: Unable to process the_string as a JSON object.
+        """
+        self.logger_.debug("ENTER")
+
+        try:
+            the_json = json.loads(the_string)
+        except Exception as the_error:
+            self.logger_.debug("LEAVE")
+            raise RuntimeError("Unable to convert string to json object, because {}".format(str(the_error)))
+
+        result = False
+        for key, value in the_json.items():
+            if key == "rxdata":
+                for key_1, value_1 in value.items():
+                    if key_1 == "ConEnable":
+                        self.conEnable_ = value_1
+                        result = True
+
+                    if key_1 == "ConPort":
+                        self.conPort_ = value_1
+                        result = True
+
+                    if key_1 == "ConType":
+                        self.conType_ = value_1
+                        result = True
+
+                    if key_1 == "Run":
+                        self.run_ = value_1
+                        result = True
+
+                    if key_1 == "TestPattern":
+                        self.testPattern_ = value_1
+                        result = True
+
+                    if key_1 == "UseBE":
+                        self.useBE_ = value_1
+                        result = True
+
+                    if key_1 == "UseV49":
+                        self.useV49_ = value_1
+                        result = True
+
+                    if key_1 == "loopback":
+                        self.loopback_ = value_1
+                        result = True
+
+        self.logger_.debug("LEAVE")
+        return result
+
+    def conEnable(self):
+        return self.conEnable_
+
+    def conPort(self):
+        return self.conPort_
+
+    def conType(self):
+        return self.conType_
+
+    def run(self):
+        return self.run_
+
+    def testPattern(self):
+        return self.testPattern_
+
+    def useBE(self):
+        return self.useBE_
+
+    def useV49(self):
+        return self.useV49_
+
+    def loopback(self):
+        return self.loopback_
+
+class RxStat:
+    """
+    This class encapsulates the RxStatus information associated with the AVS4000 transciever
+
+    """
+    def __init__(self, loglevel=logging.INFO):
+
+        self.logger_ = logging.getLogger('AVS4000Transceiver.RxStatus')
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter(MODULE_LOG_FORMAT)
+        ch.setFormatter(formatter)
+        self.logger_.addHandler(ch)
+        self.logger_.propagate = False
+        self.logger_.setLevel(loglevel)
+
+        self.logger_.debug("ENTER")
+
+        self.gain_     = 0.0
+        self.overflow_ = -1
+        self.rate_     = -1
+        self.sample_   = -1
+
+        self.logger_.debug("LEAVE")
+
+    def __str__(self):
+        """
+        Provides a string representation of this object
+
+        :return:
+            A string
+        """
+        the_string = "RxStat:\n"\
+                     "  Gain:     {}\n"\
+                     "  Overflow: {}\n"\
+                     "  Rate:     {}\n"\
+                     "  Sample:   {}".format\
+            (
+                self.gain_,
+                self.overflow_,
+                self.rate_,
+                self.sample_
+            )
+
+        return the_string
+
+    def config(self, **kwargs):
+        """
+        Use this method to update the internal data.
+
+        :param kwargs:
+            Keys        Type    Mode    Description
+            ----        ----    ----    -----------
+            Gain        float   RO      Roll-up Gain for Stream (dB)
+            Overflow    uint    RO      Number of overflow errors for stream
+            Rate        string  RO      Current Transfer Data Rate (MB/s)
+            Sample      uint    RO      Current Transfer sample count
+
+        :return:
+            N/A
+
+        :raises ValueError: One of the Keys is invalid
+        """
+        self.logger_.debug("ENTER")
+
+        for key, value in kwargs.items():
+            if key == "Gain":
+                self.gain_ = value
+
+            elif key == "Overflow":
+                self.overflow_ = value
+
+            elif key == "Rate":
+                self.rate_ = value
+
+            elif key == "Sample":
+                self.sample_ = value
+
+            else:
+                self.logger_.debug("LEAVE")
+                raise ValueError("Invalid Key <{}>".format(key))
+
+        self.logger_.debug("LEAVE")
+
+    def update(self, the_string):
+        """
+        This method provide a way to update the object using the result from AVS4000 device port.
+
+        :param the_string: The sub string returned from ['get', ['rxstat']]
+
+                           {
+                                "rxstat":
+                                {
+                                    "Gain":0,
+                                    "Overflow":0,
+                                    "Rate":7.647379044208254,
+                                    "Sample":2566687680
+                                }
+                            }
+
+        :return:
+            == True, string parsed
+            == False, unable to parse stirng
+
+        :raises RunTimeError: if unable to parse json
+        """
+        self.logger_.debug("ENTER")
+
+        try:
+            the_json = json.loads(the_string)
+        except Exception as the_error:
+            self.logger_.debug("LEAVE")
+            raise RuntimeError("Unable to convert string to json object, because {}".format(str(the_error)))
+
+        result = False
+        for key, value in the_json.items():
+            if key == "rxstat":
+                for key_1, value_1 in value.items():
+                    if key_1 == "Gain":
+                        self.gain_ = value_1
+                        result = True
+
+                    if key_1 == "Overflow":
+                        self.overflow_ = value_1
+                        result = True
+
+                    if key_1 == "Rate":
+                        self.rate_ = value_1
+                        result = True
+
+                    if key_1 == "Sample":
+                        self.sample_ = value_1
+                        result = True
+
+        self.logger_.debug("LEAVE")
+        return result
 
     def gain(self):
         """
@@ -244,14 +1043,297 @@ class RxStatus:
         """
         return self.rate_
 
-    def sample_count(self):
+    def samplee(self):
         """
         Accessor method, that returns the current sample_count sent.
 
         :return:
             An integer representing the sample_count.
         """
-        return self.sample_count_
+        return self.sample_
+
+
+class GPS:
+    """
+    This class encapsulates the information associated with the GPS group that is part of a Device Controller
+    """
+
+    def __init__(self, loglevel=logging.INFO):
+        """
+        Constructor
+        """
+        self.logger_ = logging.getLogger('AVS4000Transceiver.GPS')
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter(MODULE_LOG_FORMAT)
+        ch.setFormatter(formatter)
+        self.logger_.addHandler(ch)
+        self.logger_.propagate = False
+        self.logger_.setLevel(loglevel)
+
+        self.logger_.debug("ENTER")
+
+        self.alt_        = 0.0
+        self.altUnits_   = ""
+        self.auto_       = False
+        self.hdop_       = 0
+        self.last_       = 0.0
+        self.lat_        = 0.0
+        self.long_       = 0.0
+        self.quality_    = 0
+        self.satellites_ = 0
+        self.sep_        = 0.0
+        self.sepUnits_   = 0.0
+        self.time_       = 0
+        self.updates_    = False
+
+        self.logger_.debug("LEAVE")
+
+    def __str__(self):
+        """
+        This method will provide a string representation of the RxStatus object.
+
+        :return:
+            A string.
+        """
+
+        the_string = "GPS:\n"\
+                     "  Alt:        {}\n"\
+                     "  AltUnits:   {}\n"\
+                     "  Auto:       {}\n"\
+                     "  HDOP:       {}\n"\
+                     "  LAT:        {}\n"\
+                     "  LONG:       {}\n"\
+                     "  Last:       {}\n"\
+                     "  Quality:    {}\n"\
+                     "  Satellites: {}\n"\
+                     "  Sep:        {}\n"\
+                     "  SepUnits:   {}\n"\
+                     "  Time:       {}\n" \
+                     "  Updates:    {}".format\
+            (
+                self.alt_,
+                self.altUnits_,
+                self.auto_,
+                self.hdop_,
+                self.lat_,
+                self.long_,
+                self.last_,
+                self.quality_,
+                self.satellites_,
+                self.sep_,
+                self.sepUnits_,
+                self.time_,
+                self.updates_
+            )
+
+        return the_string
+
+    def config(self, **kwargs):
+        """
+        Use this method to update the internal data.
+
+        :param kwargs:
+            Key         Type    Mode    Description
+            ---         ----    ----    -----------
+            Alt         float   RO      Altitude (Float)
+            AltUnits    string  RO      Altitude Units. Typically it will be 'M' for meters.
+            Auto        bool    RW      Auto Mode when enabled will automatically disable updates a valid
+                                        GPS time has been obtained.
+            HDOP        int     ??      ??
+            Last        float   RO      Last received GPS update (sec)
+            LAT         float   RO      Latitude in fractional degrees
+            LONG        float   RO      Longitude in fractional degrees
+            Quality     uint    RO      Satellites uint RO Number of satellites used [0-12]
+            Satellites  uint    RO      ??
+            Sep         float   RO      Geiod separation: difference between ellipsoid and mean sea level.
+            SepUnits    string  RO      Separation units. Typically it will be 'M' for meters.
+            Time        uint    RO      GPS UTC number of seconds since the Epoch (Jan 1 1970)
+            Updates     bool    RW      Enable GPS updates.
+
+        :return:
+            N/A
+
+        :raises ValueError: One of the Keys is invalid
+        """
+        self.logger_.debug("ENTER")
+
+        for key, value in kwargs.items():
+            if key == "Alt":
+                self.alt_ = value
+
+            elif key == "AltUnits":
+                self.altUnits_ = value
+
+            elif key == "Auto":
+                self.auto_ = value
+
+            elif key == "HDOP":
+                self.hdop_ = value
+
+            elif key == "LAT":
+                self.lat_ = value
+
+            elif key == "LONG":
+                self.long_ = value
+
+            elif key == "Last":
+                self.last_ = value
+
+            elif key == "Quality":
+                self.quality_ = value
+
+            elif key == "Satellites":
+                self.satellites_ = value
+
+            elif key == "Sep":
+                self.sep_ = value
+
+            elif key == "SepUnits":
+                self.sepUnits_ = value
+
+            elif key == "Time":
+                self.time_ = value
+
+            elif key == "Updates":
+                self.updates_ = value
+
+        self.logger_.debug("LEAVE")
+
+    def update(self, the_string):
+        """
+        This method provide a way to update the object using the result from AVS4000 device port.
+
+        :param the_string: The substring returned from ['get', ['gps']]
+                            {
+                                "gps":
+                                {
+                                    "Alt":0,
+                                    "AltUnits":"\u0000",
+                                    "Auto":true,
+                                    "HDOP":0,
+                                    "LAT":0,
+                                    "LONG":0,
+                                    "Last":1.16,
+                                    "Quality":0,
+                                    "Satellites":0,
+                                    "Sep":0,
+                                    "SepUnits":"\u0000",
+                                    "Time":null,
+                                    "Updates":true
+                                }
+                            }
+
+        :return:
+            == True, string parsed
+            == False, unable to parse stirng
+
+        :raises RunTimeError: if unable to parse json
+        """
+        self.logger_.debug("ENTER")
+
+        try:
+            the_json = json.loads(the_string)
+        except Exception as the_error:
+            self.logger_.debug("LEAVE")
+            raise RuntimeError("Unable to convert string to json object, because {}".format(str(the_error)))
+
+        result = False
+        for key, value in the_json.items():
+            if key == "gps":
+                 for key_1, value_1 in value.items():
+                    if key_1 == "Alt":
+                        self.alt_ = value_1
+                        result = True
+
+                    if key_1 == "AltUnits":
+                        self.altUnits_ = value_1
+                        result = True
+
+                    if key_1 == "Auto":
+                        self.auto_ = value_1
+                        result = True
+
+                    if key_1 == "HDOP":
+                        self.hdop_ = value_1
+                        result = True
+
+                    if key_1 == "LAT":
+                        self.lat_ = value_1
+                        result = True
+
+                    if key_1 == "LONG":
+                        self.long_ = value_1
+                        result = True
+
+                    if key_1 == "Last":
+                        self.last_ = value_1
+                        result = True
+
+                    if key_1 == "Quality":
+                        self.quality_ = value_1
+                        result = True
+
+                    if key_1 == "Satellites":
+                        self.satellites_ = value_1
+                        result = True
+
+                    if key_1 == "Sep":
+                        self.sep_ = value_1
+                        result = True
+
+                    if key_1 == "SepUnits":
+                        self.sepUnits_ = value_1
+                        result = True
+
+                    if key_1 == "Time":
+                        self.time_ = value_1
+                        result = True
+
+                    if key_1 == "Updates":
+                        self.updates_ = value_1
+                        result = True
+
+        self.logger_.debug("LEAVE")
+        return result
+
+    def alt(self):
+        return self.alt_
+
+    def altUnits(self):
+        return self.altUnits_
+
+    def auto(self):
+        return self.auto_
+
+    def hdop(self):
+        return self.hdop_
+
+    def lat(self):
+        return self.lat_
+
+    def long(self):
+        return self.long_
+
+    def last(self):
+        return self.last_
+
+    def quality(self):
+        return self.quality_
+
+    def satellites(self):
+        return self.satellites_
+
+    def sep(self):
+        return self.sep_
+
+    def sepUnits(self):
+        return self.sepUnits_
+
+    def time(self):
+        return self.time_
+
+    def updates(self):
+        return self.updates_
 
 
 class DeviceManager:
@@ -262,17 +1344,27 @@ class DeviceManager:
 
     def __init__(self, the_host='localhost', the_port=BASE_CONTROL_PORT, loglevel=logging.INFO):
         """
+        Constructor
 
-        :param the_host:
-        :param the_port:
-        :param loglevel:
+        :param the_host: The host device manager running on
+        :param the_port: The port to connect too
+        :param loglevel: The log level to use
         """
         self.logger_ = logging.getLogger('AVS4000Transceiver.DeviceManager')
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter(MODULE_LOG_FORMAT)
+        ch.setFormatter(formatter)
+        self.logger_.addHandler(ch)
+        self.logger_.propagate = False
         self.logger_.setLevel(loglevel)
+
+        self.logger_.debug("ENTER")
 
         self.socket_ = None
         self.host_   = the_host
         self.port_   = the_port
+
+        self.logger_.debug("LEAVE")
 
     def _create_device_controllers_(self, the_string):
         """
@@ -287,29 +1379,28 @@ class DeviceManager:
             == {}, no devices available.
         """
 
-        self.logger_.debug("--> create_device_controllers()")
-        self.logger_.debug("    data <{}>".format(the_string))
+        self.logger_.debug("ENTER, data <{}>".format(the_string))
 
         the_map = {}
 
         try:
             the_json = json.loads(the_string)
 
-            self.logger_.debug("    json <{}>".format(json.dumps(the_json, indent=2)))
-            self.logger_.debug("    Num entries <{}>".format(len(the_json)))
+            self.logger_.debug("json <{}>".format(json.dumps(the_json, indent=2)))
+            self.logger_.debug("num entries <{}>".format(len(the_json)))
 
             if len(the_json) < 1:
-                self.logger_.debug("<-- create_device_controllers()")
+                self.logger_.debug("LEAVE")
                 return
 
             if the_json[0] is False:
-                self.logger_.debug("<-- create_device_controllers()")
+                self.logger_.debug("LEAVE")
                 return
 
             the_index = 0
             for the_key in the_json[1].keys():
                 if the_key != 'dm':
-                    self.logger_.debug("    Processing key <{}>".format(the_key))
+                    self.logger_.debug("processing key <{}>".format(the_key))
 
                     the_object = the_json[1].get(the_key)
 
@@ -353,10 +1444,11 @@ class DeviceManager:
 
         except Exception as the_error:
             self.logger_.error("Unable to update map because: {}".format(the_error))
+            self.logger_.debug("LEAVE")
             return {}
 
-        self.logger_.debug("    number devices <{}>".format(len(the_map)))
-        self.logger_.debug("<-- create_device_controllers()")
+        self.logger_.debug("number devices <{}>".format(len(the_map)))
+        self.logger_.debug("LEAVE")
 
         return the_map
 
@@ -368,8 +1460,7 @@ class DeviceManager:
         :return:
             A list of DeviceController objects
         """
-        self.logger_.debug("--> get_controllers()")
-        self.logger_.debug("    host <{}>, port <{}>".format(self.host_, self.port_))
+        self.logger_.debug("ENTER, host <{}>, port <{}>".format(self.host_, self.port_))
 
         try:
             self.socket_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -389,13 +1480,14 @@ class DeviceManager:
 
         except Exception as the_error:
             self.logger_.error("Unable to obtain list of device controllers")
+            self.logger_.debug("LEAVE")
 
         try:
             self.socket_.close()
         except Exception:
             pass
 
-        self.logger_.debug("<-- get_controllers()")
+        self.logger_.debug("LEAVE")
         return the_map
 
 
@@ -426,26 +1518,43 @@ class DeviceController:
                is being manipulated.  Need to ensure that the value of that parameter is protected.
 
         """
-        self.logger_ = logging.getLogger('AVS4000Transceiver.DeviceManager')
+        self.logger_ = logging.getLogger('AVS4000Transceiver.DeviceController')
+
+        ch = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s %(name)s.%(funcName)s %(levelname)s: %(message)s @ %(lineno)d')
+        ch.setFormatter(formatter)
+        self.logger_.addHandler(ch)
         self.logger_.setLevel(loglevel)
+        self.logger_.propagate = False
+
+        self.logger_.debug("ENTER")
 
         #
         # Device Manager parameters.
         #
-        self.device_number_    = int(the_device_number) # The device number zero based
-        self.address_          = the_address            # FIXME: removed in latest driver
-        self.ready_            = False                  # What state the physical device is in, True means usable.
-        self.model_            = the_model              # What the model is,
-        self.device_type_      = the_type               # Should always be USB
-        self.serial_number_    = the_serial_number      # The serial number pulled from the device
+        # Reflect as a DN dn":1,"model":"AVS4000","ready":true,"sn":"SN000043","type":"USB
+        #
+        self.dn_ = DN()
+        self.dn_.config(dn=int(the_device_number), ready=False, model=the_model, type=the_type, sn=the_serial_number)
+
+        #self.device_number_    = int(the_device_number) # The device number zero based
+        #self.address_          = the_address            # FIXME: removed in latest driver
+        #self.ready_            = False                  # What state the physical device is in, True means usable.
+        #self.model_            = the_model              # What the model is,
+        #self.device_type_      = the_type               # Should always be USB
+        #self.serial_number_    = the_serial_number      # The serial number pulled from the device
 
         #
         # Device Controller parameters:
         #
-        self.host_             = "localhost"                               # What host controller is on
-        self.control_port_     = BASE_CONTROL_PORT + self.device_number_   # The control port to use
-        self.data_port_        = BASE_RECEIVE_PORT + self.device_number_   # The data port to read from
-        self.stream_id_        = "avs4000_{:03d}_{:03d}".format(self.device_number_, 0) # stream_id for data flow
+        self.host_             = "localhost"                                      # What host controller is on
+        self.stream_id_        = "avs4000_{:03d}_{:03d}".format(self.dn_.dn(), 0) # stream_id for data flow
+
+        #self.control_port_     = BASE_CONTROL_PORT + self.device_number_   # The control port to use
+        self.control_port_     = BASE_CONTROL_PORT + self.dn_.dn()   # The control port to use
+        #self.data_port_        = BASE_RECEIVE_PORT + self.device_number_   # The data port to read from
+        self.data_port_        = BASE_RECEIVE_PORT + self.dn_.dn()   # The data port to read from
+
         self.control_socket_   = None                                      # Socket attached to control port
         self.data_socket_      = None                                      # Socket attached to data port
         self.data_lock_        = threading.Lock()                          # See Note 1.
@@ -453,22 +1562,27 @@ class DeviceController:
         #
         # RX Tuning parameters
         #
+        self.rx_               = RX()
         self.sample_rate_      = 0                         # Donot base off of bandwidth because Complex data
         self.center_frequency_ = 0                         # Where to tune the radio
         self.bandwidth_        = None                      # Should always be 0, as bandwidth equals sample_rate
-        self.output_format_    = COMPLEXOutputFormat       # What kind of data will be written out
-        self.rx_status_        = None                      # Dictionary containing status of receiver.
-        self.tx_status_        = None                      # Dictionary containing status of transmitter.
-        self.allocation_id_    = ''                        # REDHAWK specific.
 
-        self.change_flag_      = False                     # Has the user changed the RX Tuning parameters.
+        self.rx_data_          = RxData()
+        self.output_format_    = COMPLEXOutputFormat       # What kind of data will be written out
+
+        self.rx_stat_           = RxStat()                      # Dictionary containing status of receiver.
+        self.tx_status_        = None                      # Dictionary containing status of transmitter.
+
+        self.allocation_id_    = ''                        # REDHAWK specific.
+        self.sri_change_flag_  = False                     # Has the user changed the RX Tuning parameters.
         self.read_data_        = True                      # Determines if this object will attach to data_port_
 
         self.complex_buffer_       = bytearray(1024 * 512)  # How much data to allocate for reads from data_port
         self.vita49_data_buffer_   = bytearray(8192 * 64)   # 64 Vita49 packets ~= 512K
         self.vita49_packet_buffer_ = bytearray(8192 * 64)   # 1024 packets
 
-        self.master_           = Master(0, 'Auto')        # Will hold the Master class object
+        self.master_           = Master()                   # Will hold the Master class object
+        self.gps_              = GPS()
 
     def __str__(self):
         """
@@ -478,12 +1592,7 @@ class DeviceController:
             A string representing the object
         """
 
-        the_string = "  device number  : {}\n"\
-                     "  ready          : {}\n"\
-                     "  address        : {}\n"\
-                     "  model          : {}\n"\
-                     "  device_type    : {}\n"\
-                     "  serial number  : {}\n"\
+        the_string = "  {}\n"\
                      "  control_socket : {}\n"\
                      "  data_socket    : {}\n"\
                      "  host           : {}\n"\
@@ -494,12 +1603,7 @@ class DeviceController:
                      "  stream id      : {}\n"\
                      "  complex unpack : {}\n".format\
             (
-                self.device_number_,
-                self.ready_,
-                self.address_,
-                self.model_,
-                self.device_type_,
-                self.serial_number_,
+                self.dn_,
                 self.control_socket_,
                 self.data_socket_,
                 self.host_,
@@ -520,12 +1624,12 @@ class DeviceController:
         :return:
             N/A
         """
-        self.logger_.debug("--> connect_data()")
+        self.logger_.debug("ENTER")
 
         with self.data_lock_:
             if self.data_socket_ is None:
                 try:
-                    self.logger_.debug("    port <{}>".format(self.data_port_))
+                    self.logger_.debug("port <{}>".format(self.data_port_))
 
                     self.data_socket_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.data_socket_.setblocking(1)
@@ -534,9 +1638,10 @@ class DeviceController:
 
                 except Exception as the_error:
                     self.data_socket_ = None
+                    self.logger_.debug("LEAVE")
                     raise RuntimeError("ERROR: Unable to connect to device because <{}>".format(str(the_error)))
 
-        self.logger_.debug("<-- connect_data()")
+        self.logger_.debug("LEAVE")
 
     def disconnect_data(self):
         """
@@ -545,17 +1650,17 @@ class DeviceController:
         :return:
             N/A
         """
-        self.logger_.debug("--> disconnect_data()")
+        self.logger_.debug("ENTER")
 
-        self.logger_.debug("    Waiting for lock")
+        self.logger_.debug("waiting for lock")
         with self.data_lock_:
 
             if self.data_socket_ is not None:
-                self.logger_.debug("   cloing")
+                self.logger_.debug("closing")
                 self.data_socket_.close()
                 self.data_socket_ = None
 
-        self.logger_.debug("<-- disconnect_data()")
+        self.logger_.debug("LEAVE")
 
     def connect_control(self):
         """
@@ -565,19 +1670,20 @@ class DeviceController:
         :return:
 
         """
-        self.logger_.debug("--> connect_control() ")
+        self.logger_.debug("ENTER")
 
         if self.control_socket_ is None:
             try:
                 self.control_socket_ = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.control_socket_.connect((self.host_, self.control_port_))
-                self.logger_.debug("    connected <{}>".format(self.control_socket_))
+                self.logger_.debug("connected <{}>".format(self.control_socket_))
 
             except Exception as the_error:
                 self.control_socket_ = None
+                self.logger_.debug("LEAVE")
                 raise RuntimeError("ERROR: Unable to connect to device because <{}>".format(str(the_error)))
 
-        self.logger_.debug("<-- connect_control()")
+        self.logger_.debug("LEAVE")
 
 
     def disconnect_control(self):
@@ -587,13 +1693,13 @@ class DeviceController:
         :return:
             N/A
         """
-        self.logger_.debug("--> disconnect_control() ")
+        self.logger_.debug("ENTER")
 
         if self.control_socket_ is not None:
             self.control_socket_.close()
             self.control_socket_ = None
 
-        self.logger_.debug("<-- disconnect_control() ")
+        self.logger_.debug("LEAVE")
 
     def send_command(self, the_request):
         """
@@ -613,8 +1719,7 @@ class DeviceController:
                     == None, no response provided.
         """
 
-        self.logger_.debug("--> send_command()")
-        self.logger_.debug("    request type <{}>".format(type(the_request)))
+        self.logger_.debug("ENTER, request type <{}>".format(type(the_request)))
 
         the_string = json.dumps(the_request) + "\n"
 
@@ -624,7 +1729,7 @@ class DeviceController:
             self.control_socket_ = None
             return False, None
 
-        self.logger_.debug("    sent <{}>".format(the_number_bytes))
+        self.logger_.debug("sent number bytes<{}>".format(the_number_bytes))
 
         try:
             the_data = self.control_socket_.recv(8912)
@@ -632,22 +1737,26 @@ class DeviceController:
             self.control_socket_ = None
             return False, None
 
-        self.logger_.debug("    received <{}".format(the_data))
+        self.logger_.debug("received <{}".format(the_data))
 
         try:
             the_response = json.loads(the_data)
         except ValueError:
             return False, None
 
-        self.logger_.debug("    ".format(json.dumps(the_response, indent=2)))
-        self.logger_.debug("    returning <{}>".format(the_response[0]))
+        self.logger_.debug("response: {}".format(json.dumps(the_response, indent=2)))
+        self.logger_.debug("returning <{}>".format(json.dumps(the_response[0])))
 
         if len(the_response) > 1:
-            return the_response[0], the_response[1]
-        else:
-            return the_response[0], None
+            #
+            # Make sure to return the string representation of the data, so that the objects can process it themselves
+            # using their update method.
+            #
+            self.logger_.debug("LEAVE")
+            return the_response[0], json.dumps(the_response[1])
 
-
+        self.logger_.debug("LEAVE")
+        return the_response[0], None
 
     def setup(self):
         """
@@ -658,7 +1767,7 @@ class DeviceController:
             == False, Unable to initialize
 
         """
-        self.logger_.debug("--> setup()")
+        self.logger_.debug("ENTER")
 
         self.connect_control()
 
@@ -676,7 +1785,7 @@ class DeviceController:
 
         valid, data = self.send_command(the_request)
 
-        self.logger_.debug("<-- setup()")
+        self.logger_.debug("LEAVE")
         return valid
 
     def teardown(self):
@@ -688,7 +1797,7 @@ class DeviceController:
             == False, Unable to initialize
 
         """
-        self.logger_.debug("--> teardown()")
+        self.logger_.debug("ENTER")
 
         self.connect_control()
 
@@ -709,7 +1818,7 @@ class DeviceController:
         self.disconnect_data()
         self.disconnect_control()
 
-        self.logger_.debug("<-- teardown()")
+        self.logger_.debug("LEAVE")
         return valid
 
 
@@ -725,7 +1834,7 @@ class DeviceController:
             == True,  successfully turned data on
             == False, unable to start data.
         """
-        self.logger_.debug("--> enable()")
+        self.logger_.debug("ENTER")
 
         self.connect_control()
 
@@ -747,7 +1856,7 @@ class DeviceController:
         valid, data = self.send_command(the_request)
 
         if not valid:
-            self.logger_.debug("<-- enable()")
+            self.logger_.debug("LEAVE")
             return False
 
         '''
@@ -759,10 +1868,10 @@ class DeviceController:
         # Create data connection
         #
         if self.read_data_:
-            self.logger_.debug("    read_data_ <True>")
+            self.logger_.debug("read_data_ <True>")
             self.connect_data()
         else:
-            self.logger_.debug("    read_data_ <False>")
+            self.logger_.debug("read_data_ <False>")
 
         #
         # Turn the data on
@@ -780,7 +1889,7 @@ class DeviceController:
 
         valid, data = self.send_command(the_request)
 
-        self.logger_.debug("<-- enable()")
+        self.logger_.debug("LEAVE")
         return valid
 
     def disable(self):
@@ -793,7 +1902,7 @@ class DeviceController:
         :raises RuntimeError: when there is a problem:
         """
 
-        self.logger_.debug("--> disable()")
+        self.logger_.debug("ENTER")
 
         #
         # Make sure I have a control connection
@@ -821,11 +1930,11 @@ class DeviceController:
         # Send the request to stop the data
         #
         valid, data = self.send_command(the_request)
-        self.logger_.debug("    rxdata.run valid <{}>, <{}>".format(valid, data))
+        self.logger_.debug("rxdata.run valid <{}>, <{}>".format(valid, data))
 
         if not valid:
             self.disconnect_data()
-            self.logger_.debug("<-- disable()")
+            self.logger_.debug("LEAVE")
             raise RuntimeError("Unable to update rxdata.run, received <{}>".format(data))
 
         the_request = \
@@ -843,18 +1952,18 @@ class DeviceController:
         # Send the request to teardown socket
         #
         valid, data = self.send_command(the_request)
-        self.logger_.debug("    rxdata.conEnable valid <{}>, <{}>".format(valid, data))
+        self.logger_.debug("rxdata.conEnable valid <{}>, <{}>".format(valid, data))
 
         if not valid:
             self.disconnect_data()
-            self.logger_.debug("<-- disable()")
+            self.logger_.debug("LEAVE")
             raise RuntimeError("Unable to update rxdata.conEnable, received <{}>".format(data))
 
         #
         # Disconnect the data port
         #
         self.disconnect_data()
-        self.logger_.debug("<-- disable()")
+        self.logger_.debug("LEAVE")
 
 
     def _create_tune_request(self, the_data_port, the_center_frequency, the_sample_rate, the_output_format):
@@ -873,6 +1982,8 @@ class DeviceController:
         #
         # Determine what the output fprmat should be:
         #
+        self.logger_.debug("ENTER")
+
         if the_output_format == VITA49OutputFormat:
             useV49 = True
         else:
@@ -888,7 +1999,8 @@ class DeviceController:
                         "run":       False,
                         "conType":   "tcp",
                         "conPort":   the_data_port,
-                        "useV49":    useV49
+                        "useV49":    useV49,
+                        "useBE":     False
                     },
                     "rx" :
                     {
@@ -898,6 +2010,7 @@ class DeviceController:
                 }
             ]
 
+        self.logger_.debug("LEAVE")
         return the_request
 
     def set_tune(self, the_center_frequency, the_bandwidth, the_sample_rate):
@@ -914,7 +2027,7 @@ class DeviceController:
             == False, the tune request failed.
         """
 
-        self.logger_.debug("--> set_tune()")
+        self.logger_.debug("ENTER")
 
         self.connect_control()
 
@@ -922,7 +2035,7 @@ class DeviceController:
         self.center_frequency_ = the_center_frequency
         self.sample_rate_      = the_sample_rate
 
-        self.logger_.debug("   output_format_ <{}>".format(self.output_format_))
+        self.logger_.debug("output_format_ <{}>".format(self.output_format_))
 
         the_request = self._create_tune_request\
             (
@@ -934,54 +2047,85 @@ class DeviceController:
 
         valid, data = self.send_command(the_request)
 
-        self.change_flag_ = True
+        self.sri_change_flag_ = True
 
         #
         # Query the device for the current master sample rate.
         # This value will be used when calculating the fractional sample rate when receiving vita49 packets
         #
-        if not self.query_master():
-            self.logger_.error("Unable to obtain master sample rate.")
+        try:
+            self.query_master()
+        except Exception as the_error:
+            self.logger_.debug("LEAVE")
+            self.logger_.error("Unable to obtain master sample rate, because {}.".format(str(the_error)))
+            return False
 
-        self.logger_.debug("<-- set_tune()")
+        self.logger_.debug("LEAVE")
         return valid
 
     def delete_tune(self):
-        self.logger_.debug("--> delete_tune()")
+        self.logger_.debug("ENTER")
 
         #
         # FIXME: Not sure what I should do here
         #
 
-        self.logger_.debug("<-- set_tune()")
+        self.logger_.debug("LEAVE")
         return True
 
-    def query_rxstatus(self):
+    def query_rx(self):
+        """
+        Use this method to make a request to the Device Controller for the current rx information
+
+        :return:
+           RX: an object representing the rx information
+
+        :raises RunTimeError: Unable to communciate with Device Controller
+        """
+        self.logger_.debug("ENTER")
+
+        self.connect_control()
+
+        the_request = ['get', ['rx']]
+
+        valid, data = self.send_command(the_request)
+        self.logger_.debug("data <{}>".format(data))
+
+        if valid:
+            self.rx.update(data)
+        else:
+            self.logger_.debug("LEAVE")
+            raise RuntimeError("Daemon refused status request.")
+
+        self.logger_.debug("LEAVE")
+        return self.rx
+
+    def query_rxstat(self):
         """
         Use this method to make a request to the Device Controller for the current rxstatus information.
 
         :return:
-           RxStatus: an object representing the rx status
+           RxStatus: an object representing the rxstat status
 
         :raises RunTimeError: Unable to communicate to Device Controller
         """
-        self.logger_.debug("--> query_rxstatus()")
+        self.logger_.debug("ENTER")
 
         self.connect_control()
 
         the_request = ['get', ['rxstat']]
 
         valid, data = self.send_command(the_request)
+        self.logger_.debug("    data <{}>".format(data))
 
         if valid:
-            self.rx_status_ = RxStatus(data)
+            self.rx_stat_.update(data)
         else:
-            self.logger_.debug("<-- query_rxstatus()")
+            self.logger_.debug("LEAVE")
             raise RuntimeError("Daemon refused status request.")
 
-        self.logger_.debug("<-- query_rxstatus()")
-
-        return self.rx_status_
+        self.logger_.debug("LEAVE")
+        return self.rx_stat_
 
     def query_txstatus(self):
         """
@@ -992,46 +2136,63 @@ class DeviceController:
 
         :raises NotImplementedError: Unable to communicate to Device Controller
         """
-        self.logger_.debug("--> query_txstatus()")
-
-        self.connect_control()
+        self.logger_.debug("ENTER")
 
         raise NotImplementedError("TX statusing is not available yet.")
+        self.logger_.debug("LEAVE")
 
-        self.logger_.debug("<-- query_txstatus()")
-
-    def query_master(self):
+    def query_gps(self):
         """
-        Use this method to make a request to the
+
         :return:
         """
-        self.logger_.debug("--> query_master()")
+        self.logger_.debug("ENTER")
 
         self.connect_control()
 
         #
         # Tell device to create data socket
         #
-        the_request = \
-            [
-                "get", "master"
-            ]
+        the_request = ["get", ["gps"]]
 
         valid, data = self.send_command(the_request)
+        self.logger_.debug("data <{}>".format(data))
 
-        if not valid:
-            self.logger_.debug("<-- query_master()")
-            return False
+        if valid:
+            self.gps.update(data)
+        else:
+            self.logger_.debug("LEAVE")
+            raise RuntimeError("Daemon refused status request.")
 
-        self.logger_.debug("    data <{}>".format(data))
+        self.logger_.debug("LEAVE")
+        return self.gps_
 
-        the_sample_rate      = data['master']['SampleRate']
-        the_sample_rate_mode = data['master']['SampleRateMode']
+    def query_master(self):
+        """
+        Use this method to make a request to the
 
-        self.master_ = Master(the_sample_rate, the_sample_rate_mode)
+        :return:
+        """
+        self.logger_.debug("ENTER")
 
-        self.logger_.debug("<-- query_master()")
-        return True
+        self.connect_control()
+
+        #
+        # Tell device to create data socket
+        #
+        the_request = ["get", ["master"]]
+
+        valid, data = self.send_command(the_request)
+        self.logger_.debug("data <{}>".format(data))
+
+        if valid:
+            self.master_.update(data)
+        else:
+            self.logger_.debug("LEAVE")
+            raise RuntimeError("Daemon refused status request.")
+
+        self.logger_.debug("LEAVE")
+        return self.master_
 
     '''
     #
@@ -1097,22 +2258,24 @@ class DeviceController:
             != None, a list of unsigned short
         """
 
-        self.logger_.debug("--> get_data_complex()")
+        self.logger_.debug("ENTER")
 
         current_view = memoryview(self.complex_buffer_)
 
         toread = len(self.complex_buffer_)
 
-        self.logger_.debug("   Waiting for lock")
+        self.logger_.debug("waiting for lock")
         with self.data_lock_:
             if self.data_socket_ is not None:
                 while toread > 0:
                     try:
-                        self.logger_.debug("    Waiting for data")
+                        self.logger_.debug("waiting for data")
                         nbytes = self.data_socket_.recv_into(current_view, toread)
-                        self.logger_.debug("    Received nbytes <{}>".format(nbytes))
+                        self.logger_.debug("received nbytes <{}>".format(nbytes))
+
                     except socket.error as the_error:
-                        self.logger_.debug("    Recieved <{}>".format(str(the_error)))
+                        self.logger_.debug("recieved <{}>".format(str(the_error)))
+                        self.logger_.debug("LEAVE")
                         return None
 
                     #
@@ -1121,6 +2284,7 @@ class DeviceController:
                     # the recv_into to return a 0.
                     #
                     if nbytes == 0:
+                        self.logger_.debug("LEAVE")
                         return None
 
                     current_view = current_view[nbytes:] # slicing views is cheap
@@ -1134,13 +2298,14 @@ class DeviceController:
 
                 the_list = struct.unpack(self._le_complex_unpack_str_, self.complex_buffer_)
 
-                self.logger_.debug("<-- get_data_complex()")
+                self.logger_.debug("LEAVE")
                 return the_list
+
             else:
-                self.logger_.debug("<-- get_data_complex()")
+                self.logger_.debug("LEAVE")
                 return None
 
-        self.logger_.debug("<-- get_data_complex()")
+        self.logger_.debug("LEAVE")
         return None
 
     def get_data_vita49(self):
@@ -1155,7 +2320,7 @@ class DeviceController:
             == None, no data
             != None, A list of Vita49DataPackets objects
         """
-        self.logger_.debug("--> get_data_vita49()")
+        self.logger_.debug("ENTER")
 
         the_packet_list = []
 
@@ -1164,17 +2329,18 @@ class DeviceController:
 
         toread = len(self.vita49_data_buffer_)
 
-        self.logger_.debug("    Waiting for lock")
+        self.logger_.debug("waiting for lock")
         with self.data_lock_:
             if self.data_socket_ is not None:
                 while toread > 0:
                     try:
-                        self.logger_.debug("    Waiting for data")
+                        self.logger_.debug("waiting for data")
                         nbytes = self.data_socket_.recv_into( current_view, toread)
-                        self.logger_.debug("    Received nbytes <{}>".format(nbytes))
+                        self.logger_.debug("received nbytes <{}>".format(nbytes))
+
                     except socket.error as the_error:
-                        self.logger_.debug("    Recieved <{}>".format(str(the_error)))
-                        self.logger_.debug("<-- get_data_vita49()")
+                        self.logger_.debug("recieved <{}>".format(str(the_error)))
+                        self.logger_.debug("LEAVE")
                         return None
 
                     #
@@ -1183,8 +2349,8 @@ class DeviceController:
                     # the recv_into to return a 0.
                     #
                     if nbytes == 0:
-                        self.logger_.debug("    Read returned back 0 bytes, indicating data socket closed.")
-                        self.logger_.debug("<-- get_v49_data()")
+                        self.logger_.debug("read returned back 0 bytes, indicating data socket closed.")
+                        self.logger_.debug("LEAVE")
                         return None
 
                     current_view =  current_view[nbytes:] # slicing views is cheap
@@ -1206,10 +2372,10 @@ class DeviceController:
                     else:
                         start = 0
 
-                    self.logger_.debug("    start <{}>, end <{}>".format(start,end))
+                    self.logger_.debug("start <{}>, end <{}>".format(start,end))
                     data =  full_view[start:end]
-                    self.logger_.debug("    data length <{}> type <{}> ".format(len(data), data))
-                    self.logger_.debug("    view is type <{}>".format( current_view))
+                    self.logger_.debug("data length <{}> type <{}> ".format(len(data), data))
+                    self.logger_.debug("view is type <{}>".format( current_view))
 
                     #
                     # The following is used to unpack,
@@ -1232,22 +2398,22 @@ class DeviceController:
                         )
 
                     if the_vrl.faw() != Vita49.VRL.EXPECTED_FAW:
-                        self.logger_.debug("    {} = {}".format(the_vrl.faw(), Vita49.VRL.EXPECTED_FAW))
+                        self.logger_.debug("{} = {}".format(the_vrl.faw(), Vita49.VRL.EXPECTED_FAW))
                         self.logger_.debug\
                              (
-                                "    Invalid faw <{0:#010x}>, VRL: \n<{1}>, \nEXPECTED <{2:#010x}>".format
+                                "Invalid faw <{0:#010x}>, VRL: \n<{1}>, \nEXPECTED <{2:#010x}>".format
                                 (
                                     the_vrl.faw(),
                                     the_vrl,
                                     Vita49.VRL.EXPECTED_FAW
                                 )
                             )
-                        self.logger_.debug("<-- get_data_vita49()")
+                        self.logger_.debug("LEAVE")
                         return None
 
                     if the_vrt.packet_size() != Vita49.VRT.EXPECTED_PACKET_SIZE:
-                        self.logger_.debug("    Invalid packet_size, VRL: <{}>".format(the_vrt))
-                        self.logger_.debug("<-- get_data_vita49()")
+                        self.logger_.debug("Invalid packet_size, VRL: <{}>".format(the_vrt))
+                        self.logger_.debug("LEAVE")
                         return None
 
                     #
@@ -1264,7 +2430,7 @@ class DeviceController:
                     if (the_num_shorts != self._vita49_expected_shorts_):
                         self.logger_.debug\
                             (
-                                "    packet_size <{}>, buffer size <{}>, the_num_shorts <{}>".format
+                                "packet_size <{}>, buffer size <{}>, the_num_shorts <{}>".format
                                 (
                                     the_vrt.number_payload_words(),
                                     len(self.vita49_data_buffer_[Vita49.VRT_PAYLOAD_OFFSET:the_buffer_end]),
@@ -1281,20 +2447,20 @@ class DeviceController:
                     the_packet = Vita49.Vita49DataPacket(the_vrl, the_vrt, the_tuple)
                     the_packet_list.append(the_packet)
 
-                self.logger_.debug("    Good data")
-                self.logger_.debug("<-- get_data_vita49()")
+                self.logger_.debug("good data")
+                self.logger_.debug("LEAVE")
                 return the_packet_list
 
             else:
-                self.logger_.debug("    data_socket_ == None")
-                self.logger_.debug("<-- get_data_vita49()")
+                self.logger_.debug("data_socket_ == None")
+                self.logger_.debug("LEAVE")
                 return None
 
         #
         # Here for completeness
         #
-        self.logger_.debug("    while loop failed.")
-        self.logger_.debug("<-- get_data_vita49()")
+        self.logger_.debug("while loop failed.")
+        self.logger_.debug("LEAVE")
         return None
 
     def get_data_vita49_single_timestamp(self):
@@ -1312,7 +2478,7 @@ class DeviceController:
             == None, no data
             != None, A list of Vita49DataPackets objects (1 element in size)
         """
-        self.logger_.debug("--> get_data_vita49_single_timestamp()")
+        self.logger_.debug("ENTER")
 
         the_packet_list = []
 
@@ -1321,18 +2487,19 @@ class DeviceController:
 
         toread = len(self.vita49_data_buffer_)
 
-        self.logger_.debug("    Waiting for lock")
+        self.logger_.debug("waiting for lock")
         with self.data_lock_:
             if self.data_socket_ is not None:
                 the_packet = None
                 while toread > 0:
                     try:
-                        self.logger_.debug("    Waiting for data")
+                        self.logger_.debug("waiting for data")
                         nbytes = self.data_socket_.recv_into(current_view, toread)
-                        self.logger_.debug("    Received nbytes <{}>".format(nbytes))
+                        self.logger_.debug("received nbytes <{}>".format(nbytes))
+
                     except socket.error as the_error:
-                        self.logger_.debug("    Recieved <{}>".format(str(the_error)))
-                        self.logger_.debug("<-- get_data_vita49_single_timestamp()")
+                        self.logger_.debug("recieved <{}>".format(str(the_error)))
+                        self.logger_.debug("LEAVE")
                         return None
 
                     #
@@ -1341,8 +2508,8 @@ class DeviceController:
                     # the recv_into to return a 0.
                     #
                     if nbytes == 0:
-                        self.logger_.debug("    Read returned back 0 bytes, indicating data socket closed.")
-                        self.logger_.debug("<-- get_data_vita49_single_timestamp()")
+                        self.logger_.debug("Read returned back 0 bytes, indicating data socket closed.")
+                        self.logger_.debug("LEAVE")
                         return None
 
                     current_view = current_view[nbytes:]  # slicing views is cheap
@@ -1364,10 +2531,10 @@ class DeviceController:
                     else:
                         start = 0
 
-                    self.logger_.debug("    start <{}>, end <{}>".format(start, end))
+                    self.logger_.debug("start <{}>, end <{}>".format(start, end))
                     data = full_view[start:end]
-                    self.logger_.debug("    data length <{}> type <{}> ".format(len(data), data))
-                    self.logger_.debug("    view is type <{}>".format(current_view))
+                    self.logger_.debug("data length <{}> type <{}> ".format(len(data), data))
+                    self.logger_.debug("view is type <{}>".format(current_view))
 
                     #
                     # The following is used to unpack,
@@ -1390,22 +2557,22 @@ class DeviceController:
                         )
 
                     if the_vrl.faw() != Vita49.VRL.EXPECTED_FAW:
-                        self.logger_.debug("    {} = {}".format(the_vrl.faw(), Vita49.VRL.EXPECTED_FAW))
+                        self.logger_.debug("{} = {}".format(the_vrl.faw(), Vita49.VRL.EXPECTED_FAW))
                         self.logger_.debug \
                                 (
-                                "    Invalid faw <{0:#010x}>, VRL: \n<{1}>, \nEXPECTED <{2:#010x}>".format
+                                "invalid faw <{0:#010x}>, VRL: \n<{1}>, \nEXPECTED <{2:#010x}>".format
                                     (
                                     the_vrl.faw(),
                                     the_vrl,
                                     Vita49.VRL.EXPECTED_FAW
                                 )
                             )
-                        self.logger_.debug("<-- get_data_vita49_single_timestamp()")
+                        self.logger_.debug("LEAVE")
                         return None
 
                     if the_vrt.packet_size() != Vita49.VRT.EXPECTED_PACKET_SIZE:
-                        self.logger_.debug("    Invalid packet_size, VRL: <{}>".format(the_vrt))
-                        self.logger_.debug("<-- get_data_vita49_single_timestamp()")
+                        self.logger_.debug("invalid packet_size, VRL: <{}>".format(the_vrt))
+                        self.logger_.debug("LEAVE")
                         return None
 
                     #
@@ -1422,7 +2589,7 @@ class DeviceController:
                     if (the_num_shorts != self._vita49_expected_shorts_):
                         self.logger_.debug \
                                 (
-                                "    packet_size <{}>, buffer size <{}>, the_num_shorts <{}>".format
+                                "packet_size <{}>, buffer size <{}>, the_num_shorts <{}>".format
                                     (
                                     the_vrt.number_payload_words(),
                                     len(self.vita49_data_buffer_[Vita49.VRT_PAYLOAD_OFFSET:the_buffer_end]),
@@ -1441,20 +2608,20 @@ class DeviceController:
                     else:
                         the_packet.extend(the_tuple)
 
-                self.logger_.debug("    Good data")
-                self.logger_.debug("<-- get_data_vita49_single_timestamp()")
+                self.logger_.debug("good data")
+                self.logger_.debug("LEAVE")
                 return [the_packet]
 
             else:
-                self.logger_.debug("    data_socket_ == None")
-                self.logger_.debug("<-- get_data_vita49_single_timestamp()")
+                self.logger_.debug("data_socket_ == None")
+                self.logger_.debug("LEAVE")
                 return None
 
         #
         # Here for completeness
         #
-        self.logger_.debug("    while loop failed.")
-        self.logger_.debug("<-- get_data_vita49_single_timestamp()")
+        self.logger_.debug("while loop failed.")
+        self.logger_.debug("LEAVE")
         return None
 
     def get_data_vita49_raw(self):
@@ -1470,23 +2637,24 @@ class DeviceController:
             == None, no data
             != None, A string containing one or more Vita49 packets.
         """
-        self.logger_.debug("--> get_data_vita49_raw()")
+        self.logger_.debug("ENTER")
 
         view = memoryview(self.vita49_packet_buffer_)
 
         toread = len(self.vita49_packet_buffer_)
 
-        self.logger_.debug("    Waiting for lock")
+        self.logger_.debug("waiting for lock")
         with self.data_lock_:
             if self.data_socket_ is not None:
                 while toread > 0:
                     try:
-                        self.logger_.debug("    Waiting for data")
+                        self.logger_.debug("waiting for data")
                         nbytes = self.data_socket_.recv_into(view, toread)
-                        self.logger_.debug("    Received nbytes <{}>".format(nbytes))
+                        self.logger_.debug("received nbytes <{}>".format(nbytes))
+
                     except socket.error as the_error:
-                        self.logger_.debug("    Recieved <{}>".format(str(the_error)))
-                        self.logger_.debug("<-- get_data_vita49_raw()")
+                        self.logger_.debug("recieved <{}>".format(str(the_error)))
+                        self.logger_.debug("LEAVE")
                         return None, None
 
                     #
@@ -1495,27 +2663,27 @@ class DeviceController:
                     # the recv_into to return a 0.
                     #
                     if nbytes == 0:
-                        self.logger_.debug("    Read returned back 0 bytes, indicating data socket closed.")
-                        self.logger_.debug("<-- get_data_vita49_raw()")
+                        self.logger_.debug("read returned back 0 bytes, indicating data socket closed.")
+                        self.logger_.debug("LEAVE")
                         return None, None
 
                     view = view[nbytes:] # slicing views is cheap
                     toread -= nbytes
 
-                self.logger_.debug("    Good data")
-                self.logger_.debug("<-- get_data_vita49_raw()")
+                self.logger_.debug("good data")
+                self.logger_.debug("LEAVE")
                 return None, self.vita49_packet_buffer_
 
             else:
-                self.logger_.debug("    data_socket_ == None")
-                self.logger_.debug("<-- get_data_vita49_raw()")
+                self.logger_.debug("data_socket_ == None")
+                self.logger_.debug("LEAVE")
                 return None, None
 
         #
         # Here for completeness
         #
-        self.logger_.debug("    while loop failed.")
-        self.logger_.debug("<-- get_data_vita49_raw()")
+        self.logger_.debug("while loop failed.")
+        self.logger_.debug("LEAVE")
         return None, None
 
     def data_port(self):
@@ -1585,7 +2753,7 @@ class DeviceController:
             None:      query_rxstatus never performed.
             RxStatus : the cached results obtained from the query_rxstatus method.
         """
-        return self.rx_status_
+        return self.rx_stat_
 
     def txstatus(self):
         """
@@ -1654,8 +2822,12 @@ class DeviceController:
             == True, SRI has changed
             == False, SRI has not changed.
         """
-        the_result = self.change_flag_
-        self.change_flag_ = False
+        self.logger_.debug("ENTER")
+
+        the_result = self.sri_change_flag_
+        self.sri_change_flag_ = False
+
+        self.logger_.debug("LEAVE")
         return the_result
 
     def set_read_data_flag(self, the_value):
@@ -1675,10 +2847,12 @@ class DeviceController:
             N/A
         """
 
-        self.logger_.debug("--> set_read_data_flag()")
-        self.logger_.debug("    read_data_ <{}>".format(the_value))
+        self.logger_.debug("ENTER")
+
+        self.logger_.debug("read_data_ <{}>".format(the_value))
         self.read_data_ = the_value
-        self.logger_.debug("<-- set_read_data_flag()")
+
+        self.logger_.debug("LEAVE")
 
     def set_loglevel(self, the_level):
         """
@@ -1704,8 +2878,7 @@ class DeviceController:
         :return:
             N/A
         """
-        self.logger_.debug("--> setOutputFormat()")
-        self.logger_.debug("    the_type <{}>".format(the_type))
+        self.logger_.debug("ENTER, the_type <{}>".format(the_type))
 
         if the_type == COMPLEXOutputFormat:
             self.output_format_ = COMPLEXOutputFormat
@@ -1714,10 +2887,11 @@ class DeviceController:
             self.output_format_ = VITA49OutputFormat
 
         else:
-            raise ValueError("Invalid output type of <{}> requested.".format(the_type))
+            self.logger_.debug("LEAVE")
+            raise ValueError("invalid output type of <{}> requested.".format(the_type))
 
-        self.logger_.debug("    output_format <{}>".format(self.output_format_))
-        self.logger_.debug("<-- setOutputFormat()")
+        self.logger_.debug("output_format <{}>".format(self.output_format_))
+        self.logger_.debug("LEAVE")
 
 
 if __name__ == '__main__':
