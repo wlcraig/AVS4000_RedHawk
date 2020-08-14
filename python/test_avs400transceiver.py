@@ -1,9 +1,10 @@
+#!/usr/bin/python2
+
 import AVS4000Transceiver
 import logging
 
-
-if __name__ == '__main__':
-    the_device = AVS4000Transceiver.DeviceController(1, 12701, "NA", "AVS4000", "usb", logging.DEBUG)
+def main(context):
+    the_device = AVS4000Transceiver.DeviceController(1, 12701, "NA", "AVS4000", "usb", context['loglevel'])
     the_device.setup()
 
     the_device.set_read_data_flag(True)
@@ -24,3 +25,14 @@ if __name__ == '__main__':
             print("No data returned")
 
     the_device.disable()
+
+    print(the_device.query_gps())
+    print(the_device.query_master())
+    print(the_device.query_rx())
+    print(the_device.query_rxstat())
+
+if __name__ == '__main__':
+    context = {}
+    context['loglevel'] = logging.INFO
+
+    main(context)

@@ -2092,13 +2092,13 @@ class DeviceController:
         self.logger_.debug("data <{}>".format(data))
 
         if valid:
-            self.rx.update(data)
+            self.rx_.update(data)
         else:
             self.logger_.debug("LEAVE")
             raise RuntimeError("Daemon refused status request.")
 
         self.logger_.debug("LEAVE")
-        return self.rx
+        return self.rx_
 
     def query_rxstat(self):
         """
@@ -2159,7 +2159,7 @@ class DeviceController:
         self.logger_.debug("data <{}>".format(data))
 
         if valid:
-            self.gps.update(data)
+            self.gps_.update(data)
         else:
             self.logger_.debug("LEAVE")
             raise RuntimeError("Daemon refused status request.")

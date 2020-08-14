@@ -837,9 +837,9 @@ class AVS4000_i(AVS4000_base):
             #    found has turner id 1, etc.
             #
             loglevel = self.devices_[tuner_id].loglevel()
-            self.devices_[tuner_id].set_loglevel(logging.DEBUG)
+            #self.devices_[tuner_id].set_loglevel(logging.DEBUG)
             self.devices_[tuner_id].set_tune(the_center_frequency, the_bandwidth, the_sampe_rate)
-            self.devices_[tuner_id].set_loglevel(loglevel)
+            #self.devices_[tuner_id].set_loglevel(loglevel)
             #
             # NOTE:
             #    It is no longer necessary to tell the transceiver whether it should read the data
