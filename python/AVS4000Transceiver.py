@@ -25,6 +25,9 @@ TXType = 'TX'
 COMPLEXOutputFormat  = 'ComplexData'
 VITA49OutputFormat   = 'Vita49Data'
 
+BIGOutputEndian    = "Big"
+LITTLEOutputEndian = "Little"
+
 BASE_CONTROL_PORT = 12900
 BASE_RECEIVE_PORT = 12700
 
@@ -670,6 +673,46 @@ class RX:
 
         self.logger_.debug("LEAVE")
         return result
+
+    def freq(self):
+        return self.freq_
+
+    def gain(self):
+        return self.gain_
+
+    def gainMode(self):
+        return self.gainMode_
+
+    def lbbw(self):
+        return self.lbbw_
+
+    def lbMode(self):
+        return self.lbMode_
+
+    def lbThreshold(self):
+        return self.lbThreshold_
+
+    def rfbw(self):
+        return self.rfbw_
+
+    def sampleRate(self):
+        return self.sampleRate_
+
+    def startDelay(self):
+        return self.startDelay_
+
+    def startMode(self):
+        return self.startMode_
+
+    def startUTCFrac(self):
+        return self.startUTCFrac
+
+    def startUTCInt(self):
+        return self.startUTCInt_
+
+    def userDelay(self):
+        return self.userDelay_
+
 
 class RxData:
     """
@@ -1474,7 +1517,7 @@ class DeviceManager:
 
             the_data = self.socket_.recv(8192)
 
-            self.logger_.debug("    the_data <{}>".format(the_data))
+            self.logger_.debug("the_data <{}>".format(the_data))
 
             the_map = self._create_device_controllers_(the_data)
 
@@ -1499,8 +1542,11 @@ class DeviceController:
     # Constants
     #
     _vita49_expected_shorts_    = 4080
-    _vita49_payload_unpack_str_ = 'h' * _vita49_expected_shorts_
-    _le_complex_unpack_str_     = "<" + 'h' * (256 * 1024)  # See complex_buffer_ below, WORKING!!!, Little Endian
+    _le_vita49_payload_unpack_str_ = 'h' * _vita49_expected_shorts_
+    _be_vita49_payload_unpack_str_ = '>'+ 'h' * _vita49_expected_shorts_
+
+    _le_complex_unpack_str_ = "<" + 'h' * (256 * 1024)  # See complex_buffer_ below, WORKING!!!, Little Endian
+    _be_complex_unpack_str_ = ">" + 'h' * (256 * 1024)  # See complex_buffer_ below, WORKING!!!, Big Endian
 
     def __init__(self, the_device_number, the_address, the_serial_number, the_model, the_type, loglevel=logging.INFO):
         """
@@ -1560,18 +1606,14 @@ class DeviceController:
         self.data_lock_        = threading.Lock()                          # See Note 1.
 
         #
-        # RX Tuning parameters
+        # Objects representing AVS4000 groups
         #
         self.rx_               = RX()
-        self.sample_rate_      = 0                         # Donot base off of bandwidth because Complex data
-        self.center_frequency_ = 0                         # Where to tune the radio
-        self.bandwidth_        = None                      # Should always be 0, as bandwidth equals sample_rate
-
         self.rx_data_          = RxData()
-        self.output_format_    = COMPLEXOutputFormat       # What kind of data will be written out
-
-        self.rx_stat_           = RxStat()                      # Dictionary containing status of receiver.
+        self.rx_stat_          = RxStat()                      # Dictionary containing status of receiver.
         self.tx_status_        = None                      # Dictionary containing status of transmitter.
+        self.master_           = Master()                   # Will hold the Master class object
+        self.gps_              = GPS()
 
         self.allocation_id_    = ''                        # REDHAWK specific.
         self.sri_change_flag_  = False                     # Has the user changed the RX Tuning parameters.
@@ -1581,9 +1623,6 @@ class DeviceController:
         self.vita49_data_buffer_   = bytearray(8192 * 64)   # 64 Vita49 packets ~= 512K
         self.vita49_packet_buffer_ = bytearray(8192 * 64)   # 1024 packets
 
-        self.master_           = Master()                   # Will hold the Master class object
-        self.gps_              = GPS()
-
     def __str__(self):
         """
         Helper function to display human readable representation of object.
@@ -1592,27 +1631,44 @@ class DeviceController:
             A string representing the object
         """
 
-        the_string = "  {}\n"\
-                     "  control_socket : {}\n"\
-                     "  data_socket    : {}\n"\
+        unpack_format = ""
+
+        if self.rx_data_.useV49():
+            if self.rx_data_.useBE():
+                unpack_format = self._be_vita49_payload_unpack_str_[0] + " (BE V49)"
+            else:
+                unpack_format = self._le_vita49_payload_unpack_str_[0] + " (LE V49)"
+        else:
+            if self.rx_data_.useBE():
+                unpack_format = self._be_complex_unpack_str_[0] + " (BE CMP)"
+            else:
+                unpack_format = self._le_complex_unpack_str_[0] + " (LE CMP)"
+
+
+        the_string = "{}\n"\
+                     "{}\n"\
+                     "{}\n"\
+                     "Misc:\n"\
                      "  host           : {}\n"\
                      "  control port   : {}\n"\
+                     "  control_socket : {}\n"\
                      "  data port      : {}\n"\
-                     "  output_format  : {}\n"\
+                     "  data_socket    : {}\n"\
                      "  read_data      : {}\n"\
                      "  stream id      : {}\n"\
                      "  complex unpack : {}\n".format\
             (
                 self.dn_,
-                self.control_socket_,
-                self.data_socket_,
+                self.rx_,
+                self.rx_data_,
                 self.host_,
                 self.control_port_,
+                self.control_socket_,
                 self.data_port_,
-                self.output_format_,
+                self.data_socket_,
                 self.read_data_,
                 self.stream_id_,
-                self._le_complex_unpack_str_[0]
+                unpack_format
             )
 
         return the_string
@@ -1848,7 +1904,7 @@ class DeviceController:
                     "rxdata":
                     {
 
-                        "conEnable": True
+                        "conEnable": True,
                     }
                 }
             ]
@@ -1966,14 +2022,13 @@ class DeviceController:
         self.logger_.debug("LEAVE")
 
 
-    def _create_tune_request(self, the_data_port, the_center_frequency, the_sample_rate, the_output_format):
+    def _create_tune_request(self, the_data_port, the_rx_object, the_rx_data_object):
         '''
         This is a utility method to create the JSON message to configure the receiver for tuning
 
-        :param the_data_port:         The TCP port that the data consumer/sink will read from
-        :param the_center_frequency:  The center frequency to tune to in MHz
-        :param the_sample_rate:       The sample rate in MSPS
-        :param the_output_format:     The output format: COMPLEXOutputFormat, VITA49OutputFormat
+        :param the_data_port:      The TCP port that the data consumer/sink will read from
+        :param the_rx_object:      The object representing the RX group
+        :param the_rx_data_object: The object representing the RXDATA group
 
         :return:
             List that may be converted to a JSON object, and conforms to the AVS4000 API
@@ -1983,11 +2038,6 @@ class DeviceController:
         # Determine what the output fprmat should be:
         #
         self.logger_.debug("ENTER")
-
-        if the_output_format == VITA49OutputFormat:
-            useV49 = True
-        else:
-            useV49 = False
 
         the_request = \
             [
@@ -1999,13 +2049,13 @@ class DeviceController:
                         "run":       False,
                         "conType":   "tcp",
                         "conPort":   the_data_port,
-                        "useV49":    useV49,
-                        "useBE":     False
+                        "useV49":    the_rx_data_object.useV49(),
+                        "useBE":     the_rx_data_object.useBE()
                     },
                     "rx" :
                     {
-                        "sampleRate": the_sample_rate,
-                        "freq":       the_center_frequency,
+                        "sampleRate": the_rx_object.sampleRate(),
+                        "freq":       the_rx_object.freq()
                     }
                 }
             ]
@@ -2031,19 +2081,11 @@ class DeviceController:
 
         self.connect_control()
 
-        self.bandwidth_        = None
-        self.center_frequency_ = the_center_frequency
-        self.sample_rate_      = the_sample_rate
+        self.rx_.config(Freq=the_center_frequency, SampleRate=the_sample_rate)
 
-        self.logger_.debug("output_format_ <{}>".format(self.output_format_))
+        self.logger_.debug("<{}>".format(self.rx_))
 
-        the_request = self._create_tune_request\
-            (
-            self.data_port_,
-            self.center_frequency_,
-            self.sample_rate_,
-            self.output_format_
-            )
+        the_request = self._create_tune_request(self.data_port_, self.rx_, self.rx_data_)
 
         valid, data = self.send_command(the_request)
 
@@ -2169,7 +2211,7 @@ class DeviceController:
 
     def query_master(self):
         """
-        Use this method to make a request to the
+        Use this method to make a request to the AVS4000 for the vale of the MASTER group.
 
         :return:
         """
@@ -2193,6 +2235,9 @@ class DeviceController:
 
         self.logger_.debug("LEAVE")
         return self.master_
+
+
+
 
     '''
     #
@@ -2296,7 +2341,12 @@ class DeviceController:
                 #the_num_shorts = len(self.complex_buffer_) / 2
                 #the_list = struct.unpack('h' * the_num_shorts, self.complex_buffer_)
 
-                the_list = struct.unpack(self._le_complex_unpack_str_, self.complex_buffer_)
+                if self.rx_data_.useBE():
+                    self.logger_.debug("    unpacking using BE")
+                    the_list = struct.unpack(self._be_complex_unpack_str_, self.complex_buffer_)
+                else:
+                    self.logger_.debug("    unpacking using LE")
+                    the_list = struct.unpack(self._le_complex_unpack_str_, self.complex_buffer_)
 
                 self.logger_.debug("LEAVE")
                 return the_list
@@ -2440,7 +2490,7 @@ class DeviceController:
                     #self.vita49_data_buffer_[Vita49.VRT_PAYLOAD_OFFSET:the_buffer_end]
                     the_tuple = struct.unpack\
                         (
-                            self._vita49_payload_unpack_str_,
+                            self._le_vita49_payload_unpack_str_,
                             data[Vita49.VRT_PAYLOAD_OFFSET:the_buffer_end]
                         )
 
@@ -2599,7 +2649,7 @@ class DeviceController:
                     # self.vita49_data_buffer_[Vita49.VRT_PAYLOAD_OFFSET:the_buffer_end]
                     the_tuple = struct.unpack \
                             (
-                            self._vita49_payload_unpack_str_,
+                            self._le_vita49_payload_unpack_str_,
                             data.tobytes()[Vita49.VRT_PAYLOAD_OFFSET:the_buffer_end]
                         )
 
@@ -2686,6 +2736,9 @@ class DeviceController:
         self.logger_.debug("LEAVE")
         return None, None
 
+    """
+    Quick element accessor methods
+    """
     def data_port(self):
         """
         Accessor method, that returns the value of the data port associated with this Device Controller
@@ -2721,7 +2774,7 @@ class DeviceController:
         :return:
             The integer value of the center frequency sent to this Device Controller
         """
-        return self.center_frequency_
+        return self.rx_.freq()
 
     def bandwidth(self):
         """
@@ -2734,7 +2787,7 @@ class DeviceController:
         :return:
             The integer value of the bandwidth
         """
-        return(self.bandwidth_)
+        return(self.rx_.sampleRate())
 
     def sample_rate(self):
         """
@@ -2743,28 +2796,7 @@ class DeviceController:
         :return:
             The integer value of the sample rate
         """
-        return(self.sample_rate_)
-
-    def rxstatus(self):
-        """
-        Accessor method, that returns the cached information obtained from a query_rxstatus request.
-
-        :return:
-            None:      query_rxstatus never performed.
-            RxStatus : the cached results obtained from the query_rxstatus method.
-        """
-        return self.rx_stat_
-
-    def txstatus(self):
-        """
-        Accessor method, that returns the cached information obtained from a query_txstatus request.
-
-        :return:
-            None:      query_rxstatus never performed.
-            TxStatus : the cached results obtained from the query_rxstatus method.
-        """
-        return self.tx_status_
-
+        return(self.rx_.sampleRate())
 
     def output_format(self):
         """
@@ -2774,7 +2806,13 @@ class DeviceController:
             COMPLEXOutputFormat: data_port will be producing signed 16bit complex data
             VITA49OutputFormat:  data port will be producing Vita49.0/1 packets
         """
-        return self.output_format_
+
+        the_format = COMPLEXOutputFormat
+
+        if self.rx_data_.useV49():
+            the_format = VITA49OutputFormat
+
+        return the_format
     
     def loglevel(self):
         """
@@ -2796,19 +2834,6 @@ class DeviceController:
         """
         return self.read_data_
 
-    def master(self):
-        """
-        Accessor method, that returns the cached value of the Master group data
-
-        NOTE:
-            Assumes that query_master has been performed.
-
-        :return:
-            == None: query_master has not been called.
-            != None: Master object.
-        """
-        return self.master_
-
     def sri_changed(self):
         """
         Accessor method, that returns whether or not the signal related information has changed since the last call
@@ -2827,9 +2852,82 @@ class DeviceController:
         the_result = self.sri_change_flag_
         self.sri_change_flag_ = False
 
+
         self.logger_.debug("LEAVE")
         return the_result
 
+    def gps_geolocation_dictionary(self):
+        """
+        Accessor mehtod, that will return the gps information as a set of GEOLOCATION_GPS keywords
+        that are compatibalbe with REDHAWK.
+
+        :return: Dictionary container GEOLOCATION_GPS keywords and values.
+        """
+        self.logger_.debug("ENTER")
+        the_gps_geolocation_struct = Vita49.GEOLOCATION_GPS_struct()
+
+        the_gps_geolocation_struct.config\
+            (
+                time_seconds=self.gps_.time(),
+                latitude=self.gps_.lat(),
+                longitude=self.gps_.long(),
+                altitude=self.gps_.alt(),
+            )
+
+        self.logger_.debug("LEAVE")
+        return the_gps_geolocation_struct.to_dictionary()
+
+    """
+    This set of methods are used to obtain the cached data without making a
+    request to the device
+    """
+
+    def master(self):
+        """
+        Accessor method, that returns the cached value of the Master group data
+
+        NOTE:
+            Assumes that query_master has been performed.
+
+        :return:
+            == None: query_master has not been called.
+            != None: Master object.
+        """
+        return self.master_
+
+
+    def rx(self):
+        return self.rx_
+
+    def rxdata(self):
+        return self.rx_data_
+
+    def gps(self):
+        return self.gps_
+
+    def rxstatus(self):
+        """
+        Accessor method, that returns the cached information obtained from a query_rxstatus request.
+
+        :return:
+            None:      query_rxstatus never performed.
+            RxStatus : the cached results obtained from the query_rxstatus method.
+        """
+        return self.rx_stat_
+
+    def txstatus(self):
+        """
+        Accessor method, that returns the cached information obtained from a query_txstatus request.
+
+        :return:
+            None:      query_rxstatus never performed.
+            TxStatus : the cached results obtained from the query_rxstatus method.
+        """
+        return self.tx_status_
+
+    """
+    Mutator methods
+    """
     def set_read_data_flag(self, the_value):
         """
         Mutator method, that is used to indicate to the device controller whether on not it should read from the TCP/IP
@@ -2881,18 +2979,44 @@ class DeviceController:
         self.logger_.debug("ENTER, the_type <{}>".format(the_type))
 
         if the_type == COMPLEXOutputFormat:
-            self.output_format_ = COMPLEXOutputFormat
+            self.rx_data_.config(UseV49=False)
 
         elif the_type == VITA49OutputFormat:
-            self.output_format_ = VITA49OutputFormat
+            self.rx_data_.config(UseV49=True)
 
         else:
             self.logger_.debug("LEAVE")
             raise ValueError("invalid output type of <{}> requested.".format(the_type))
 
-        self.logger_.debug("output_format <{}>".format(self.output_format_))
+        self.logger_.debug("output_format <{}>".format(the_type))
         self.logger_.debug("LEAVE")
 
+    def set_output_endian(self, the_type):
+        """
+        Mutator method, that is used to indicate to the device controller what endian format to use for
+        the integer values BIG or LITTLE
+
+        :param the_type: {BIGOutputEndian, LITTLEOutputEndian}
+
+        :raises ValueError: if the_type not one of the defined values.
+
+        :return:
+            N/A
+        """
+        self.logger_.debug("ENTER, the_type <{}>".format(the_type))
+
+        if the_type == BIGOutputEndian:
+            self.rx_data_.config(UseBE=True)
+
+        elif the_type == LITTLEOutputEndian:
+            self.rx_data_.config(UseBE=False)
+
+        else:
+            self.logger_.debug("LEAVE")
+            raise ValueError("Invalid endian type of <{}> requested.".format(the_type))
+
+        self.logger_.debug("useBE <{}>".format(self.rx_data_.useBE()))
+        self.logger_.debug("LEAVE")
 
 if __name__ == '__main__':
     the_dm = DeviceManager()

@@ -405,3 +405,97 @@ class Vita49DataPacket:
         :return:  N/A
         """
         self.payload_.extend(the_tuple)
+
+class GEOLOCATION_GPS_struct:
+
+    def __init__(self):
+        self.time_seconds_       = 0.0
+        self.time_fractional_    = 0.0
+        self.manufacturer_id_    = 0
+        self.latitude_           = 0.0
+        self.longitude_          = 0.0
+        self.altitude_           = 0.0
+        self.groud_speed_        = 0.0
+        self.heading_angle_      = 0.0
+        self.track_angle_        = 0.0
+        self.magnetic_variation_ = 0.0
+
+    def to_dictionary(self):
+        the_dictionary = {}
+
+        the_dictionary["GEOLOCATION_GPS::TIME_SECONDS"]       = self.time_seconds_
+        the_dictionary["GEOLOCATION_GPS::TIME_FRACTIONAL"]    = self.time_fractional_
+        the_dictionary["GEOLOCATION_GPS::MANUFACTURER_ID"]    = self.manufacturer_id_
+        the_dictionary["GEOLOCATION_GPS::LATITUDE"]           = self.latitude_
+        the_dictionary["GEOLOCATION_GPS::LONGITUDE"]          = self.longitude_
+        the_dictionary["GEOLOCATION_GPS::ALTITUDE"]           = self.altitude_
+        the_dictionary["GEOLOCATION_GPS::GROUND_SPEED"]       = self.groud_speed_
+        the_dictionary["GEOLOCATION_GPS::HEADING_ANGLE"]      = self.heading_angle_
+        the_dictionary["GEOLOCATION_GPS::TRACK_ANGLE"]        = self.track_angle_
+        the_dictionary["GEOLOCATION_GPS::MAGNETIC_VARIATION"] = self.magnetic_variation_
+
+        return the_dictionary
+
+    def get_id(self):
+        return "GEOLOCATION_GPS"
+
+    def config(self, **kwargs):
+        """
+        Use this method to change the value of the internal fields.
+
+        :param kwargs:
+            Key                 Type    Description
+            ---                 ----    -----------
+            time_seconds        float
+            time_fractional     float
+            manufacturer_id     int
+            latitude            float
+            longitude           float
+            altitude            float
+            ground_speed        float
+            heading_angle       float
+            track_angle         float
+            magnetic_variation  float
+
+        :return: N/A
+
+        :raises: ValueError when key passed in is not known.
+
+        """
+
+        for key, value in kwargs.items():
+
+            if key == "time_seconds":
+                self.time_seconds_ = value
+
+            elif key == "time_fractional":
+                self.time_fractional_ = value
+
+            elif key == "manufacturer_id":
+                self.manufacturer_id_ = value
+
+            elif key == "latitude":
+                self.latitude_ = value
+
+            elif key == "longitude":
+                self.longitude_ = value
+
+            elif key == "altitude":
+                self.altitude_ = value
+
+            elif key == "ground_speed":
+                self.groud_speed_ = value
+
+            elif key == "heading_angle":
+                self.heading_angle_ = value
+
+            elif key == "track_angle":
+                self.track_angle_ = value
+
+            elif key == "magnectic_variation":
+                self.magnetic_variation_  = value
+
+            else:
+                raise ValueError("Invalid key <{}>".format(key))
+
+

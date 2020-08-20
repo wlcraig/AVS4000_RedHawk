@@ -130,11 +130,19 @@ False: Does not need control and can just attach to any currently tasked device 
           <enumeration label="BULKIO" value="BULKIO_Source"/>
         </enumerations>
       </simple>
+      <simple id="output_endian" type="string">
+        <value>LITTLE_Endian</value>
+        <enumerations>
+          <enumeration label="BIG" value="BIG_Endian"/>
+          <enumeration label="LITTLE" value="LITTLE_Endian"/>
+        </enumerations>
+      </simple>
     </struct>
     <structvalue>
       <simpleref refid="avs4000_output_configuration::tuner_number" value="0"/>
       <simpleref refid="avs4000_output_configuration::output_format" value="VITA49_Format"/>
       <simpleref refid="avs4000_output_configuration::output_source" value="TCP_Source"/>
+      <simpleref refid="output_endian" value=""/>
     </structvalue>
     <configurationkind kindtype="property"/>
   </structsequence>

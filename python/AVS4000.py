@@ -4,7 +4,12 @@
 # AUTO-GENERATED
 #
 # Source: AVS4000.spd.xml
+from omniORB import CORBA, any
+
 from ossie.device import start_device
+#from frontend import sri
+#import frontend
+
 import logging
 
 from AVS4000_base import *
@@ -39,11 +44,11 @@ class AVS4000_i(AVS4000_base):
         The incoming request for tuning contains a string describing the requested tuner
         type. The string for the request must match the string in the tuner status.
         """
-        self._baseLog.info("--> constructor()")
+        self._baseLog.debug("--> constructor()")
         
-        self.host_                 = 'localhost'
-        self.devices_              = {}
-        self.dm_                   = AVS4000Transceiver.DeviceManager(the_host=self.host_, loglevel=logging.DEBUG)
+        self.host_    = 'localhost'
+        self.devices_ = {}
+        self.dm_      = AVS4000Transceiver.DeviceManager(the_host=self.host_)
         self.expected_frame_count_ = -1
 
         #
@@ -62,17 +67,19 @@ class AVS4000_i(AVS4000_base):
         #
         for configuration in self.avs4000_output_configuration:
             self._baseLog.debug("    type <{}>, configuration <{}>".format(type(configuration), configuration))
-            tuner_number = configuration.tuner_number
+            tuner_number  = configuration.tuner_number
             output_source = configuration.output_source
             output_format = configuration.output_format
+            output_endian = configuration.output_endian
 
-            self._baseLog.debug\
+            self._baseLog.info\
                 (
-                    "    \n"\
-                    "tuner_number <{}>\n"\
-                    "output_source <{}>\n"\
-                    "output_format <{}>"\
-                    .format(tuner_number, output_source, output_format)
+                    "configuration:\n"\
+                    "   tuner_number  <{}>\n"\
+                    "   output_source <{}>\n"\
+                    "   output_format <{}>\n"\
+                    "   output_endian <{}>"
+                    .format(tuner_number, output_source, output_format, output_endian)
                 )
 
             if int(tuner_number) in self.devices_:
@@ -87,13 +94,18 @@ class AVS4000_i(AVS4000_base):
                 else:
                     self.devices_[tuner_number].set_read_data_flag(True)
 
+                if output_endian == enums.avs4000_output_configuration__.output_endian.BIG:
+                    self.devices_[tuner_number].set_output_endian(AVS4000Transceiver.BIGOutputEndian)
+                else:
+                    self.devices_[tuner_number].set_output_endian(AVS4000Transceiver.LITTLEOutputEndian)
+
         #
         # Identify the number of devices found.
         #
         self.addChannels(len(self.devices_.keys()), "RX_DIGITIZER")
 
-        self._baseLog.info("    Found <{}>".format(len(self.devices_.keys())))
-        self._baseLog.info("<-- constructor()")
+        self._baseLog.info("Found <{}> devices.".format(len(self.devices_.keys())))
+        self._baseLog.debug("<-- constructor()")
 
     def start(self):
         """
@@ -104,19 +116,24 @@ class AVS4000_i(AVS4000_base):
             N/A
         """
 
-        self._baseLog.info("--> start()")
+        self._baseLog.debug("--> start()")
 
-        for tuner_id in self.devices_.keys():
-            self.devices_[tuner_id].setup()
+        try:
+            for tuner_id in self.devices_.keys():
+                self.devices_[tuner_id].setup()
 
-            #
-            # Display how the devices are configured by default.
-            #
-            self._baseLog.info("    {}".format(self.devices_[tuner_id]))
+                #
+                # Display how the devices are configured by default.
+                #
+                self._baseLog.info("\nTUNER {}: {}".format(tuner_id, self.devices_[tuner_id]))
+
+        except Exception as the_error:
+            self._baseLog.error("Unable to setup/start device because: <{}>".format(the_error))
+            raise the_error
 
         super(AVS4000_i, self).start()
 
-        self._baseLog.info("<-- start()")
+        self._baseLog.debug("<-- start()")
 
     def stop(self):
         """
@@ -126,7 +143,7 @@ class AVS4000_i(AVS4000_base):
         :return:
             N/A
         """
-        self._baseLog.info("--> stop()")
+        self._baseLog.debug("--> stop()")
 
         super(AVS4000_i, self).stop()
 
@@ -136,20 +153,21 @@ class AVS4000_i(AVS4000_base):
         for tuner_id in self.devices_.keys():
             self.devices_[tuner_id].teardown()
 
-        self._baseLog.info("<-- stop()")
+        self._baseLog.debug("<-- stop()")
 
     def avs4000_output_configuration_changed(self, propid, oldval, newval):
-        self._baseLog.info("--> avs4000_output_configuration_changed()")
-        self._baseLog.info("    propid <{}>".format(propid))
-        self._baseLog.info("    oldval <{}>, length <{}>".format(oldval, len(oldval)))
-        self._baseLog.info("    oldval[0] <{}>".format(oldval[0]))
-        self._baseLog.info("    newval <{}>, length <{}>".format(newval, len(newval)))
-        self._baseLog.info("    newval[0] <{}>".format(newval[0]))
+        self._baseLog.debug("--> avs4000_output_configuration_changed()")
+        self._baseLog.debug("    propid <{}>".format(propid))
+        self._baseLog.debug("    oldval <{}>, length <{}>".format(oldval, len(oldval)))
+        self._baseLog.debug("    oldval[0] <{}>".format(oldval[0]))
+        self._baseLog.debug("    newval <{}>, length <{}>".format(newval, len(newval)))
+        self._baseLog.debug("    newval[0] <{}>".format(newval[0]))
 
         for index in range(0, len(newval)):
             the_tuner  = newval[index].tuner_number
             the_format = newval[index].output_format
             the_source = newval[index].output_source
+            the_endian = newval[index].output_endian
 
             if the_tuner < len(self.devices_):
                 #
@@ -181,10 +199,22 @@ class AVS4000_i(AVS4000_base):
 
                 if the_source == enums.avs4000_output_configuration__.output_source.TCP:
                     self.devices_[the_tuner].set_read_data_flag(False)
+
+                #
+                # The endianess of the data
+                #   BIGOutputEndian:    The integers are passed in big endian byte format
+                #   LITTLEOutputEndian: The integers are passed in little enadian byte format
+                #
+                if the_endian == enums.avs4000_output_configuration__.output_endian.BIG:
+                    self.devices_[the_tuner].set_output_endian(AVS4000Transceiver.BIGOutputEndian)
+
+                if the_endian == enums.avs4000_output_configuration__.output_endian.LITTLE:
+                    self.devices_[the_tuner].set_output_endian(AVS4000Transceiver.LITTLEOutputEndian)
+
             else:
                 self._baseLog.error("Ignoring request to set output format for tuner <{}>".format(the_tuner))
 
-        self._baseLog.info("<-- avs4000_output_configuration_changed()")
+        self._baseLog.debug("<-- avs4000_output_configuration_changed()")
 
     def process(self):
         """
@@ -354,7 +384,8 @@ class AVS4000_i(AVS4000_base):
             
         """
         #
-        # When the avs4000Transceiver is just providing control, then just
+        # When the avs4000Transceiver is just providing control, then just return NOOP
+        #
         # FIXME: Need to test to see what happens when the this loop is just
         #        left to run, it should just work.
         #
@@ -384,19 +415,33 @@ class AVS4000_i(AVS4000_base):
                 self._baseLog.debug("    After  read {:.4f}".format(time.time()))
 
                 if data is None:
-                    self._baseLog.debug("   data is None")
+                    self._baseLog.debug("    data is None")
                     self._baseLog.debug("<-- process()")
                     return NOOP
 
                 utcNow = bulkio.timestamp.now()
 
                 if self.devices_[index].sri_changed():
-                    sri = bulkio.sri.create(streamID)
-                    sri.xdelta = 1.0/self.devices_[index].sample_rate()
-                    sri.mode   = 1  # Tell follow on processing that the mode is complex
-                    self.port_dataShort_out.pushSRI(sri)
+                    self._baseLog.debug("    Pushing SRI")
 
-                    self._baseLog.info("    Pushed SRI <{}>".format(sri))
+                    the_sri = frontend.sri.create(streamID, self.frontend_tuner_status[index], self._id)
+                    the_sri.xdelta = 1.0/self.devices_[index].sample_rate()
+                    the_sri.mode   = 1  # Tell follow on processing that the mode is complex
+
+                    #
+                    # Add the GPS geolocation SRI information.
+                    #
+                    the_dictionary = self.devices_[index].gps_geolocation_dictionary()
+
+                    the_list = []
+                    for key, value in the_dictionary.items():
+                        the_list.append(CF.DataType(id=key, value=any .to_any(value)))
+
+                    self.addModifyKeyword(the_sri, "GEOLOCATION_GPS", the_list, True)
+                    self._baseLog.info("SRI <{}>".format(the_sri))
+
+                    self.port_dataShort_out.pushSRI(the_sri)
+                    self._baseLog.info("    Pushed SRI")
 
                 self._baseLog.debug("    streamId <{}>, len <{}>, type data[0] <{}>".format(streamID, len(data), type(data[0])))
                 self._baseLog.debug("    Before push {:.4f}".format(time.time()))
@@ -404,8 +449,6 @@ class AVS4000_i(AVS4000_base):
                 self._baseLog.debug("    After  push {:.4f}".format(time.time()))
 
             elif self.devices_[index].output_format() == AVS4000Transceiver.VITA49OutputFormat:
-                the_start_time = time.time()
-
                 """
                 Physical device is configured to produce Vita49 Pakcets that contain complex samples unsigned short 
                 I & Q.  The samples will be extracted from the packet and passed to the consumer via BulkIO.  The
@@ -462,12 +505,24 @@ class AVS4000_i(AVS4000_base):
                     the_timestamp = bulkio.timestamp.create(the_vrt.integer_seconds_timestamp(), the_fractional_seconds, tsrc=0)
 
                     if self.devices_[index].sri_changed():
-                        sri = bulkio.sri.create(streamID)
-                        sri.xdelta = 1.0/self.devices_[index].sample_rate()
-                        sri.mode   = 1  # Tell follow on processing that the mode is complex
+                        self._baseLog.debug("    Pushing SRI")
+                        the_sri = frontend.sri.create(streamID, self.frontend_tuner_status[index], self._id)
+                        the_sri.xdelta = 1.0/self.devices_[index].sample_rate()
+                        the_sri.mode   = 1 # Tell follow on processing that the mode is complex
 
-                        self._baseLog.info("    Pushing SRI: <{}>".format(sri))
-                        self.port_dataShort_out.pushSRI(sri)
+                        #
+                        # Add the GPS geolocation SRI information.
+                        #
+                        the_dictionary = self.devices_[index].gps_geolocation_dictionary()
+                        the_list = []
+                        for key, value in the_dictionary.items():
+                            the_list.append(CF.DataType(id=key, value=any .to_any(value)))
+
+                        self.addModifyKeyword(the_sri, "GEOLOCATION_GPS", the_list)
+                        self._baseLog.info("SRI <{}>".format(the_sri))
+
+                        self.port_dataShort_out.pushSRI(the_sri)
+                        self._baseLog.debug("    Pushed SRI")
 
                     self._baseLog.debug("    streamId <{}>, len <{}>, type data[0] <{}>".format(streamID, len(the_data), type(the_data[0])))
                     self._baseLog.debug("    Before push {:.4f}".format(time.time()))
@@ -489,189 +544,196 @@ class AVS4000_i(AVS4000_base):
     *************************************************************'''
     def getTunerType(self,allocation_id):
 
-        self._baseLog.info("--> getTunerType()")
+        self._baseLog.debug("--> getTunerType()")
 
         idx = self.getTunerMapping(allocation_id)
         if idx < 0: raise FRONTEND.FrontendException("Invalid allocation id")
 
-        self._baseLog.info("<-- getTunerType()")
+        self._baseLog.debug("<-- getTunerType()")
 
         return self.frontend_tuner_status[idx].tuner_type
 
     def getTunerDeviceControl(self,allocation_id):
-        self._baseLog.info("--> getTunerDeviceControl()")
+        self._baseLog.debug("--> getTunerDeviceControl()")
 
         idx = self.getTunerMapping(allocation_id)
         if idx < 0: raise FRONTEND.FrontendException("Invalid allocation id")
         if self.getControlAllocationId(idx) == allocation_id:
 
-            self._baseLog.info("<-- getTunerDeviceControl()")
+            self._baseLog.debug("<-- getTunerDeviceControl()")
 
             return True
 
-        self._baseLog.info("<-- getTunerDeviceControl()")
-
+        self._baseLog.debug("<-- getTunerDeviceControl()")
         return False
 
     def getTunerGroupId(self,allocation_id):
-        self._baseLog.info("--> getTunerGroupId()")
+        self._baseLog.debug("--> getTunerGroupId()")
 
         idx = self.getTunerMapping(allocation_id)
         if idx < 0: raise FRONTEND.FrontendException("Invalid allocation id")
 
-        self._baseLog.info("<-- getTunerGroupId()")
-
+        self._baseLog.debug("<-- getTunerGroupId()")
         return self.frontend_tuner_status[idx].group_id
 
     def getTunerRfFlowId(self,allocation_id):
-        self._baseLog.info("--> getTunerRfFlowId()")
+        self._baseLog.debug("--> getTunerRfFlowId()")
 
         idx = self.getTunerMapping(allocation_id)
         if idx < 0: raise FRONTEND.FrontendException("Invalid allocation id")
 
-        self._baseLog.info("<-- getTunerRfFlowId()")
-
+        self._baseLog.debug("<-- getTunerRfFlowId()")
         return self.frontend_tuner_status[idx].rf_flow_id
 
 
     def setTunerCenterFrequency(self,allocation_id, freq):
-        self._baseLog.info("--> setTunerCenterFrequency()")
+        self._baseLog.debug("--> setTunerCenterFrequency()")
 
         idx = self.getTunerMapping(allocation_id)
 
         if idx < 0:
+            self._baseLog.debug("<-- getTunerCenterFrequency()")
             raise FRONTEND.FrontendException("Invalid allocation id")
 
         if allocation_id != self.getControlAllocationId(idx):
+            self._baseLog.debug("<-- getTunerCenterFrequency()")
             raise FRONTEND.FrontendException(("ID "+str(allocation_id)+" does not have authorization to modify the tuner"))
 
         if freq<0:
+            self._baseLog.debug("<-- getTunerCenterFrequency()")
             raise FRONTEND.BadParameterException("Center frequency cannot be less than 0")
 
         # set hardware to new value. Raise an exception if it's not possible
         self.frontend_tuner_status[idx].center_frequency = freq
 
-        self._baseLog.info("<-- getTunerCenterFrequency()")
+        self._baseLog.debug("<-- getTunerCenterFrequency()")
 
     def getTunerCenterFrequency(self,allocation_id):
-        self._baseLog.info("--> getTunerCenterFrequency()")
+        self._baseLog.debug("--> getTunerCenterFrequency()")
 
         idx = self.getTunerMapping(allocation_id)
-        if idx < 0: raise FRONTEND.FrontendException("Invalid allocation id")
+        if idx < 0:
+            self._baseLog.debug("<-- getTunerCenterFrequency()")
+            raise FRONTEND.FrontendException("Invalid allocation id")
 
-        self._baseLog.info("<-- getTunerCenterFrequency()")
-
+        self._baseLog.debug("<-- getTunerCenterFrequency()")
         return self.frontend_tuner_status[idx].center_frequency
 
     def setTunerBandwidth(self, allocation_id, bw):
-        self._baseLog.info("--> setTunerBandwidth()")
+        self._baseLog.debug("--> setTunerBandwidth()")
 
         idx = self.getTunerMapping(allocation_id)
 
         if idx < 0:
+            self._baseLog.debug("<-- setTunerBandwidth()")
             raise FRONTEND.FrontendException("Invalid allocation id")
 
         if allocation_id != self.getControlAllocationId(idx):
+            self._baseLog.debug("<-- setTunerBandwidth()")
             raise FRONTEND.FrontendException(("ID "+str(allocation_id)+" does not have authorization to modify the tuner"))
 
         if bw < 0:
+            self._baseLog.debug("<-- setTunerBandwidth()")
             raise FRONTEND.BadParameterException("Bandwidth cannot be less than 0")
 
         # set hardware to new value. Raise an exception if it's not possible
         self.frontend_tuner_status[idx].bandwidth = bw
 
-        self._baseLog.info("<-- setTunerBandwidth()")
+        self._baseLog.debug("<-- setTunerBandwidth()")
 
     def getTunerBandwidth(self, allocation_id):
-        self._baseLog.info("--> getTunerBandwidth()")
+        self._baseLog.debug("--> getTunerBandwidth()")
 
         idx = self.getTunerMapping(allocation_id)
-        if idx < 0: raise FRONTEND.FrontendException("Invalid allocation id")
+        if idx < 0:
+            self._baseLog.debug("<-- getTunerBandwidth()")
+            raise FRONTEND.FrontendException("Invalid allocation id")
 
-        self._baseLog.info("<-- getTunerBandwidth()")
-
+        self._baseLog.debug("<-- getTunerBandwidth()")
         return self.frontend_tuner_status[idx].bandwidth
 
     def setTunerAgcEnable(self, allocation_id, enable):
-        self._baseLog.info("--> setTunerAgcEnable()")
+        self._baseLog.debug("--> setTunerAgcEnable()")
 
-        self._baseLog.info("<-- setTunerAgcEnable()")
-
+        self._baseLog.debug("<-- setTunerAgcEnable()")
         raise FRONTEND.NotSupportedException("setTunerAgcEnable not supported")
 
     def getTunerAgcEnable(self, allocation_id):
-        self._baseLog.info("--> getTunerAgcEnable()")
+        self._baseLog.debug("--> getTunerAgcEnable()")
 
-        self._baseLog.info("<-- getTunerAgcEnable()")
-
+        self._baseLog.debug("<-- getTunerAgcEnable()")
         raise FRONTEND.NotSupportedException("getTunerAgcEnable not supported")
 
     def setTunerGain(self,allocation_id, gain):
-        self._baseLog.info("--> setTunerGain()")
+        self._baseLog.debug("--> setTunerGain()")
 
-        self._baseLog.info("<-- setTunerGain()")
-
+        self._baseLog.debug("<-- setTunerGain()")
         raise FRONTEND.NotSupportedException("setTunerGain not supported")
 
     def getTunerGain(self,allocation_id):
-        self._baseLog.info("--> getTunerGain()")
+        self._baseLog.debug("--> getTunerGain()")
 
-        self._baseLog.info("<-- getTunerGain()")
-
+        self._baseLog.debug("<-- getTunerGain()")
         raise FRONTEND.NotSupportedException("getTunerGain not supported")
 
     def setTunerReferenceSource(self,allocation_id, source):
-        self._baseLog.info("--> setTunerReferenceSource()")
+        self._baseLog.debug("--> setTunerReferenceSource()")
 
-        self._baseLog.info("<-- setTunerReferenceSource()")
-
+        self._baseLog.debug("<-- setTunerReferenceSource()")
         raise FRONTEND.NotSupportedException("setTunerReferenceSource not supported")
 
     def getTunerReferenceSource(self, allocation_id):
-        self._baseLog.info("--> getTunerReferenceSource()")
+        self._baseLog.debug("--> getTunerReferenceSource()")
 
-        self._baseLog.info("<-- getTunerReferenceSource()")
-
+        self._baseLog.debug("<-- getTunerReferenceSource()")
         raise FRONTEND.NotSupportedException("getTunerReferenceSource not supported")
 
     def setTunerEnable(self,allocation_id, enable):
+        self._baseLog.debug("<-- setTunerEnable()")
         idx = self.getTunerMapping(allocation_id)
 
         if idx < 0:
+            self._baseLog.debug("<-- setTunerEnable()")
             raise FRONTEND.FrontendException("Invalid allocation id")
 
         if allocation_id != self.getControlAllocationId(idx):
+            self._baseLog.debug("<-- setTunerEnable()")
             raise FRONTEND.FrontendException(("ID "+str(allocation_id)+" does not have authorization to modify the tuner"))
 
         # set hardware to new value. Raise an exception if it's not possible
         self.frontend_tuner_status[idx].enabled = enable
 
-        self._baseLog.info("<-- setTunerEnable()")
+        self._baseLog.debug("<-- setTunerEnable()")
 
     def getTunerEnable(self,allocation_id):
+        self._baseLog.debug("--> getTunerEnable()")
+
         idx = self.getTunerMapping(allocation_id)
-        if idx < 0: raise FRONTEND.FrontendException("Invalid allocation id")
+        if idx < 0:
+            self._baseLog.debug("<-- getTunerEnable()")
+            raise FRONTEND.FrontendException("Invalid allocation id")
 
-        self._baseLog.info("<-- getTunerEnable()")
-
+        self._baseLog.debug("<-- getTunerEnable()")
         return self.frontend_tuner_status[idx].enabled
 
-    def setTunerOutputSampleRate(self,  allocation_id, sr):
-        self._baseLog.info("--> setTunerOutputSampleRate()")
-        self._baseLog.info("    allocation_id <{}>, sr <{}>".format(allocation_id, sr))
+    def setTunerOutputSampleRate(self, allocation_id, sr):
+        self._baseLog.debug("--> setTunerOutputSampleRate()")
+        self._baseLog.debug("    allocation_id <{}>, sr <{}>".format(allocation_id, sr))
 
-    def setTunerOutputSampleRate(self,allocation_id, sr):
         idx = self.getTunerMapping(allocation_id)
 
-        self._baseLog.info("    idx <{}>".format(idx))
+        self._baseLog.debug("    idx <{}>".format(idx))
 
         if idx < 0:
+            self._baseLog.debug("<-- setTunerOutputSampleRate()")
             raise FRONTEND.FrontendException("Invalid allocation id")
 
         if allocation_id != self.getControlAllocationId(idx):
+            self._baseLog.debug("<-- setTunerOutputSampleRate()")
             raise FRONTEND.FrontendException(("ID "+str(allocation_id)+" does not have authorization to modify the tuner"))
 
         if sr < 0:
+            self._baseLog.debug("<-- setTunerOutputSampleRate()")
             raise FRONTEND.BadParameterException("Sample rate cannot be less than 0")
 
         #
@@ -679,19 +741,18 @@ class AVS4000_i(AVS4000_base):
         #
 
         self.frontend_tuner_status[idx].sample_rate = sr
-
-        self._baseLog.info("<-- setTunerOutputSampleRate()")
+        self._baseLog.debug("<-- setTunerOutputSampleRate()")
 
     def getTunerOutputSampleRate(self, allocation_id):
-        self._baseLog.info("--> getTunerOutputSampleRate()")
+        self._baseLog.debug("--> getTunerOutputSampleRate()")
 
         idx = self.getTunerMapping(allocation_id)
 
         if idx < 0:
+            self._baseLog.debug("<-- getTunerOutputSampleRate()")
             raise FRONTEND.FrontendException("Invalid allocation id")
 
-        self._baseLog.info("<-- getTunerOutputSampleRate()")
-
+        self._baseLog.debug("<-- getTunerOutputSampleRate()")
         return self.frontend_tuner_status[idx].sample_rate
 
     '''
@@ -700,19 +761,17 @@ class AVS4000_i(AVS4000_base):
     - port_name is the port over which the call was received
     *************************************************************'''
     def get_rf_flow_id(self,port_name):
-        self._baseLog.info("--> get_rf_flow_id()")
-
-        self._baseLog.info("<-- get_rf_flow_id()")
+        self._baseLog.debug("--> get_rf_flow_id()")
+        self._baseLog.debug("<-- get_rf_flow_id()")
         return ""
 
     def set_rf_flow_id(self,port_name, _id):
-        self._baseLog.info("--> set_rf_flow_id()")
-
-        self._baseLog.info("<-- set_rf_flow_id()")
+        self._baseLog.debug("--> set_rf_flow_id()")
+        self._baseLog.debug("<-- set_rf_flow_id()")
         pass
 
     def get_rfinfo_pkt(self,port_name):
-        self._baseLog.info("--> get_rfinfo_pkt()")
+        self._baseLog.debug("--> get_rfinfo_pkt()")
 
         _antennainfo    = FRONTEND.AntennaInfo('','','','')
         _freqrange      = FRONTEND.FreqRange(0,0,[])
@@ -721,11 +780,12 @@ class AVS4000_i(AVS4000_base):
         _rfcapabilities = FRONTEND.RFCapabilities(_freqrange,_freqrange)
         _rfinfopkt      = FRONTEND.RFInfoPkt('',0.0,0.0,0.0,False,_sensorinfo,[],_rfcapabilities,[])
 
-        self._baseLog.info("<-- get_rfinfo_pkt()")
-
+        self._baseLog.debug("<-- get_rfinfo_pkt()")
         return _rfinfopkt
 
     def set_rfinfo_pkt(self,port_name, pkt):
+        self._baseLog.debug("--> set_rfinfo_pkt()")
+        self._baseLog.debug("<-- set_rfinfo_pkt()")
         pass
 
     '''
@@ -740,39 +800,35 @@ class AVS4000_i(AVS4000_base):
         ************************************************************
         '''
 
-        self._baseLog.info("--> deviceEnable()")
-        self._baseLog.info("    fts<{}>".format(fts))
-        self._baseLog.info("    tuner_id<{}>".format(tuner_id))
+        self._baseLog.debug("--> deviceEnable()")
+        self._baseLog.debug("    fts<{}>".format(fts))
+        self._baseLog.debug("    tuner_id<{}>".format(tuner_id))
 
         try:
             #
-            # The following commented code was put here to make sure that the
-            # AVS4000Transceiver software was not connecting to the data port
+            # FIXME: Need to periodically query the GPS.
             #
-            # FIXME: This should be removed later
+            # Make a request to the device for the GPS information, assume that
+            # it is stationary.
             #
-            #the_level = self.devices_[tuner_id].get_loglevel()
-            #self.devices_[tuner_id].set_loglevel(logging.DEBUG)
-
+            self.devices_[tuner_id].query_gps()
             self.devices_[tuner_id].enable()
 
             #
             # FIXME: I should create an initializtion method to centralize setting up values.
             #
             self.expected_frame_count_ = -1
-
-            self._baseLog.info("Device:\n{}".format(self.devices_[tuner_id]))
-
-            #self.devices_[tuner_id].set_loglevel(the_level)
+            self._baseLog.debug("Device:\n{}".format(self.devices_[tuner_id]))
 
         except RuntimeError as the_error:
             self._baseLog.error("Unable to start because: <{}>".format(str(the_error)))
             fts.enabled = False
+            self._baseLog.debug("<-- deviceEnable()")
             return
 
         fts.enabled = True
 
-        self._baseLog.info("<-- deviceEnable()")
+        self._baseLog.debug("<-- deviceEnable()")
         return
 
     def deviceDisable(self,fts, tuner_id):
@@ -781,12 +837,12 @@ class AVS4000_i(AVS4000_base):
         modify fts, which corresponds to self.frontend_tuner_status[tuner_id]
         Make sure to reset the 'enabled' member of fts to indicate that tuner as disabled
         ************************************************************'''
-        self._baseLog.info("--> deviceDisable()")
-        self._baseLog.info("    fts<{}>".format(fts))
-        self._baseLog.info("    tuner_id<{}>".format(tuner_id))
+        self._baseLog.debug("--> deviceDisable()")
+        self._baseLog.debug("    fts<{}>".format(fts))
+        self._baseLog.debug("    tuner_id<{}>".format(tuner_id))
 
         try:
-            self._baseLog.info("    calling disable()")
+            self._baseLog.debug("    calling disable()")
             self.devices_[tuner_id].disable()
 
         except RuntimeError as the_error:
@@ -794,7 +850,7 @@ class AVS4000_i(AVS4000_base):
 
         fts.enabled = False
 
-        self._baseLog.info("<-- deviceDisable()")
+        self._baseLog.debug("<-- deviceDisable()")
         return
 
     def deviceSetTuning(self, request, fts, tuner_id):
@@ -813,11 +869,11 @@ class AVS4000_i(AVS4000_base):
         return True if the tuning succeeded, and False if it failed
         ************************************************************'''
 
-        self._baseLog.info("--> deviceSetTuning()")
-        self._baseLog.info("    Evaluate whether or not a tuner is added  *********")
-        self._baseLog.info("    request <{}>, type<{}>".format(request, type(request)))
-        self._baseLog.info("    fts <{}>, type<{}>".format(fts, type(fts)))
-        self._baseLog.info("    tuner_id <{}>, type<{}>".format(tuner_id, type(tuner_id)))
+        self._baseLog.debug("--> deviceSetTuning()")
+        self._baseLog.debug("    Evaluate whether or not a tuner is added  *********")
+        self._baseLog.debug("    request <{}>, type<{}>".format(request, type(request)))
+        self._baseLog.debug("    fts <{}>, type<{}>".format(fts, type(fts)))
+        self._baseLog.debug("    tuner_id <{}>, type<{}>".format(tuner_id, type(tuner_id)))
 
         '''
         FIXME:
@@ -827,7 +883,7 @@ class AVS4000_i(AVS4000_base):
         '''
         the_bandwidth        = request.bandwidth
         the_center_frequency = request.center_frequency
-        the_sampe_rate       = request.sample_rate
+        the_sample_rate      = request.sample_rate
 
         try:
             #
@@ -836,10 +892,8 @@ class AVS4000_i(AVS4000_base):
             #    devices_ map.  As an example the first device found has id 0, and the next device
             #    found has turner id 1, etc.
             #
-            loglevel = self.devices_[tuner_id].loglevel()
-            #self.devices_[tuner_id].set_loglevel(logging.DEBUG)
-            self.devices_[tuner_id].set_tune(the_center_frequency, the_bandwidth, the_sampe_rate)
-            #self.devices_[tuner_id].set_loglevel(loglevel)
+            self.devices_[tuner_id].set_tune(the_center_frequency, the_bandwidth, the_sample_rate)
+
             #
             # NOTE:
             #    It is no longer necessary to tell the transceiver whether it should read the data
@@ -851,18 +905,19 @@ class AVS4000_i(AVS4000_base):
             #
             # Update internal status information
             #
-            fts.bandwidth        = the_bandwidth
+            fts.bandwidth        = the_sample_rate
             fts.center_frequency = the_center_frequency
-            fts.sample_rate      = the_sampe_rate
+            fts.sample_rate      = the_sample_rate
             fts.complex          = True
 
-            self._baseLog.info("Device:\n{}".format(self.devices_[tuner_id]))
+            self._baseLog.debug("Device:\n{}".format(self.devices_[tuner_id]))
 
         except RuntimeError as the_error:
             self._baseLog.error("Tune failed, because: {}".format(str(the_error)))
+            self._baseLog.debug("<-- deviceSetTuning()")
             return False
 
-        self._baseLog.info("<-- deviceSetTuning()")
+        self._baseLog.debug("<-- deviceSetTuning()")
         return True
 
     def deviceDeleteTuning(self, fts, tuner_id):
@@ -872,8 +927,8 @@ class AVS4000_i(AVS4000_base):
         return True if the tune deletion succeeded, and False if it failed
         ************************************************************
         '''
-        self._baseLog.info("--> deviceDeleteTuning()")
-        self._baseLog.info("    Deallocate an allocated tuner  *********")
+        self._baseLog.debug("--> deviceDeleteTuning()")
+        self._baseLog.debug("    Deallocate an allocated tuner  *********")
 
         '''
         FIXME:  What is the difference between a deleteTune and a deviceDelete?
@@ -883,7 +938,7 @@ class AVS4000_i(AVS4000_base):
 
         fts.enabled = False
 
-        self._baseLog.info("<-- deviceDeleteTuning()")
+        self._baseLog.debug("<-- deviceDeleteTuning()")
         return True
 
 
@@ -891,4 +946,3 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     logging.debug("Starting Device")
     start_device(AVS4000_i)
-

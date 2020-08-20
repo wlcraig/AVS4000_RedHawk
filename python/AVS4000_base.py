@@ -37,6 +37,11 @@ class enums:
         class output_source:
             TCP = "TCP_Source"
             BULKIO = "BULKIO_Source"
+    
+        # Enumerated values for output_endian
+        class output_endian:
+            BIG = "BIG_Endian"
+            LITTLE = "LITTLE_Endian"
 
 class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation, rfinfo_delegation, ThreadedComponent):
         # These values can be altered in the __init__ of your derived class
@@ -46,7 +51,7 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
         DEFAULT_QUEUE_SIZE = 100 # The number of BulkIO packets that can be in the queue before pushPacket will block
 
         def __init__(self, devmgr, uuid, label, softwareProfile, compositeDevice, execparams):
-            print("--> AVS4000_base.__init__()")
+            #print("--> __init__()")
 
             FrontendTunerDevice.__init__(self, devmgr, uuid, label, softwareProfile, compositeDevice, execparams)
             ThreadedComponent.__init__(self)
@@ -68,29 +73,29 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
             self.frontend_listener_allocation = frontend.fe_types.frontend_listener_allocation()
             self.frontend_tuner_allocation = frontend.fe_types.frontend_tuner_allocation()
 
-            print("<-- AVS4000_Base.__init__()")
+            #print("<-- __init__()")
 
         def start(self):
-            self._baseLog.info("--> start()")
+            self._baseLog.debug("--> start()")
 
             FrontendTunerDevice.start(self)
             ThreadedComponent.startThread(self, pause=self.PAUSE)
 
-            self._baseLog.info("<-- start()")
+            self._baseLog.debug("<-- start()")
 
         def stop(self):
-            self._baseLog.info("--> stop()")
+            self._baseLog.debug("--> stop()")
 
             FrontendTunerDevice.stop(self)
             if not ThreadedComponent.stopThread(self, self.TIMEOUT):
-                self._baseLog.info("<-- stop()")
+                self._baseLog.debug("<-- stop()")
 
                 raise CF.Resource.StopError(CF.CF_NOTSET, "Processing thread did not die")
 
-            self._baseLog.info("<-- stop()")
+            self._baseLog.debug("<-- stop()")
 
         def releaseObject(self):
-            self._baseLog.info("--> releaseObject()")
+            self._baseLog.debug("--> releaseObject()")
 
             try:
                 self.stop()
@@ -99,7 +104,7 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
 
             FrontendTunerDevice.releaseObject(self)
 
-            self._baseLog.info("<-- releaseObject()")
+            self._baseLog.debug("<-- releaseObject()")
 
         ######################################################################
         # PORTS
@@ -152,8 +157,6 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
                                            type_="short")
         
             def __init__(self, allocation_id_csv="", bandwidth=0.0, center_frequency=0.0, complex=False, decimation=0, enabled=False, gain=0.0, group_id="", rf_flow_id="", sample_rate=0.0, tuner_number=0, tuner_type=""):
-
-
                 frontend.default_frontend_tuner_status_struct_struct.__init__(self, allocation_id_csv=allocation_id_csv, bandwidth=bandwidth, center_frequency=center_frequency, enabled=enabled, group_id=group_id, rf_flow_id=rf_flow_id, sample_rate=sample_rate, tuner_type=tuner_type)
                 self.complex = complex
                 self.decimation = decimation
@@ -213,13 +216,21 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
                                             defvalue="TCP_Source"
                                             )
         
-            def __init__(self, tuner_number=0, output_format="COMPLEX_Format", output_source="TCP_Source"):
+            output_endian = simple_property(
+                                            id_="output_endian",
+                                            
+                                            type_="string",
+                                            defvalue="LITTLE_Endian"
+                                            )
+        
+            def __init__(self, tuner_number=0, output_format="COMPLEX_Format", output_source="TCP_Source", output_endian="LITTLE_Endian"):
 
-                print("--> avs4000_output_configuration___struct.__init__()")
-                self.tuner_number = tuner_number
+                #print("--> avs4000_output_configuration___struct.__init__()")
+                self.tuner_number  = tuner_number
                 self.output_format = output_format
                 self.output_source = output_source
-                print("<-- avs4000_output_configuration___struct.__init__()")
+                self.output_endian = output_endian
+                #print("<-- avs4000_output_configuration___struct.__init__()")
         
             def __str__(self):
                 """Return a string representation of this structure"""
@@ -227,6 +238,7 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
                 d["tuner_number"] = self.tuner_number
                 d["output_format"] = self.output_format
                 d["output_source"] = self.output_source
+                d["output_endian"] = self.output_endian
                 return str(d)
         
             @classmethod
@@ -238,14 +250,11 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
                 return True
         
             def getMembers(self):
-                print("--> avs4000_output_configuration___struct.get_Members()")
-                print("    {}".format(self))
-                print("<-- avs4000_output_configuration___struct.get_Members()")
-                return [("tuner_number",self.tuner_number),("output_format",self.output_format),("output_source",self.output_source)]
+                return [("tuner_number",self.tuner_number),("output_format",self.output_format),("output_source",self.output_source),("output_endian",self.output_endian)]
 
         avs4000_output_configuration = structseq_property(id_="avs4000_output_configuration",
                                                           structdef=avs4000_output_configuration___struct,
-                                                          defvalue=[avs4000_output_configuration___struct(tuner_number=0,output_format="VITA49_Format",output_source="TCP_Source")],
+                                                          defvalue=[avs4000_output_configuration___struct(tuner_number=0,output_format="VITA49_Format",output_source="TCP_Source",output_endian="LITTLE_Endian")],
                                                           configurationkind=("property",),
                                                           mode="readwrite")
 
@@ -256,36 +265,30 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
         frontend_tuner_status.structdef = frontend_tuner_status_struct_struct
 
         def frontendTunerStatusChanged(self,oldValue, newValue):
-            self._baseLog.info("--> frontendTunerStatusChanged()")
+            self._baseLog.debug("--> frontendTunerStatusChanged()")
 
-            self._baseLog.info("<-- frontendTunerStatusChanged()")
+            self._baseLog.debug("<-- frontendTunerStatusChanged()")
             pass
 
-        def getTunerStatus(self, allocation_id):
-            self._baseLog.info("--> getTunerStatus()")
-
+        def getTunerStatus(self,allocation_id):
+            self._baseLog.debug("--> getTunerStatus()")
             tuner_id = self.getTunerMapping(allocation_id)
 
             if tuner_id < 0:
-                self._baseLog.info("<-- getTunerStatus()")
-
+                self._baseLog.debug("<-- getTunerStatus()")
                 raise FRONTEND.FrontendException(("ERROR: ID: " + str(allocation_id) + " IS NOT ASSOCIATED WITH ANY TUNER!"))
 
             _props = self.query([CF.DataType(id='FRONTEND::tuner_status',value=_any.to_any(None))])
 
-            self._baseLog.info("<-- getTunerStatus()")
-
+            self._baseLog.debug("<-- getTunerStatus()")
             return _props[0].value._v[tuner_id]._v
 
         def assignListener(self,listen_alloc_id, allocation_id):
             # find control allocation_id
-
             existing_alloc_id = allocation_id
             if self.listeners.has_key(existing_alloc_id):
                 existing_alloc_id = self.listeners[existing_alloc_id]
             self.listeners[listen_alloc_id] = existing_alloc_id
-
-
 
         def removeListener(self,listen_alloc_id):
             if self.listeners.has_key(listen_alloc_id):
@@ -294,4 +297,5 @@ class AVS4000_base(CF__POA.Device, FrontendTunerDevice, digital_tuner_delegation
 
         def removeAllocationIdRouting(self,tuner_id):
             pass
+
 
