@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="ProjectModuleManager">
-    <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/AVS4000.iml" filepath="$PROJECT_DIR$/.idea/AVS4000.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../assets/sdr/devices/MSDD/.idea/MSDD.iml" filepath="$PROJECT_DIR$/../assets/sdr/devices/MSDD/.idea/MSDD.iml" />
-    </modules>
-  </component>
-</project>
