@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE softwareassembly PUBLIC "-//JTRS//DTD SCA V2.2.2 SAD//EN" "softwareassembly.dtd">
+<softwareassembly id="DCE:26decc9c-7087-4c86-b828-0f436bcd34f0" name="avs4000_test_04" version="1.0.3">
+  <description>This waveform demonstrates the AVS4000 acting as the controller of the avs400d device controller.  This means that the data is being provided to the waveform via a TCP/IP port.
+  
+The rh.vita49Source component is used to connect and read data from the avs400d.
+It is important to note that rh.vita49Source component's properties must be updated to reflect the proper SRI for the downstream components to work properly.
+
+Additionally the buffer sizes needed to be tweaked to support the data rate.</description>
+  <componentfiles>
+    <componentfile id="TuneFilterDecimate_95a97531-8b9a-4ee4-af1f-8eec61810e37" type="SPD">
+      <localfile name="/components/rh/TuneFilterDecimate/TuneFilterDecimate.spd.xml"/>
+    </componentfile>
+    <componentfile id="psd_ffe043d1-81dc-4ecf-8d4c-027597956b05" type="SPD">
+      <localfile name="/components/rh/psd/psd.spd.xml"/>
+    </componentfile>
+    <componentfile id="fastfilter_3be7b283-5946-4ab1-a13a-786b4583bad1" type="SPD">
+      <localfile name="/components/rh/fastfilter/fastfilter.spd.xml"/>
+    </componentfile>
+    <componentfile id="ArbitraryRateResampler_4dc03247-5804-4f8b-8e01-4aa1d8e8e51e" type="SPD">
+      <localfile name="/components/rh/ArbitraryRateResampler/ArbitraryRateResampler.spd.xml"/>
+    </componentfile>
+    <componentfile id="AmFmPmBasebandDemod_2694bd80-14d9-4172-8d3d-497d5eb18ab0" type="SPD">
+      <localfile name="/components/rh/AmFmPmBasebandDemod/AmFmPmBasebandDemod.spd.xml"/>
+    </componentfile>
+    <componentfile id="DataConverter_e9fe6c1b-876d-4047-a7bc-91d8d8a462bc" type="SPD">
+      <localfile name="/components/toa/DataConverter/DataConverter.spd.xml"/>
+    </componentfile>
+    <componentfile id="SourceVITA49_aaa28aa8-91b0-470d-b7d8-370ec35842ad" type="SPD">
+      <localfile name="/components/rh/SourceVITA49/SourceVITA49.spd.xml"/>
+    </componentfile>
+  </componentfiles>
+  <partitioning>
+    <componentplacement>
+      <componentfileref refid="TuneFilterDecimate_95a97531-8b9a-4ee4-af1f-8eec61810e37"/>
+      <componentinstantiation id="TuneFilterDecimate_1" startorder="1">
+        <usagename>TuneFilterDecimate_1</usagename>
+        <componentproperties>
+          <structref refid="filterProps">
+            <simpleref refid="Ripple" value="0.5"/>
+          </structref>
+          <simpleref refid="FilterBW" value="256500.0"/>
+          <simpleref refid="DesiredOutputRate" value="256500.0"/>
+        </componentproperties>
+        <findcomponent>
+          <namingservice name="TuneFilterDecimate_1"/>
+        </findcomponent>
+      </componentinstantiation>
+    </componentplacement>
+    <componentplacement>
+      <componentfileref refid="psd_ffe043d1-81dc-4ecf-8d4c-027597956b05"/>
+      <componentinstantiation id="narrowband_psd" startorder="5">
+        <usagename>narrowband_psd</usagename>
+        <componentproperties>
+          <simpleref refid="fftSize" value="8192"/>
+          <simpleref refid="numAvg" value="5"/>
+        </componentproperties>
+        <findcomponent>
+          <namingservice name="narrowband_psd"/>
+        </findcomponent>
+      </componentinstantiation>
+    </componentplacement>
+    <componentplacement>
+      <componentfileref refid="psd_ffe043d1-81dc-4ecf-8d4c-027597956b05"/>
+      <componentinstantiation id="fm_psd" startorder="0">
+        <usagename>fm_psd</usagename>
+        <componentproperties>
+          <simpleref refid="fftSize" value="8192"/>
+          <simpleref refid="numAvg" value="20"/>
+        </componentproperties>
+        <findcomponent>
+          <namingservice name="psd_1"/>
+        </findcomponent>
+      </componentinstantiation>
+    </componentplacement>
+    <componentplacement>
+      <componentfileref refid="fastfilter_3be7b283-5946-4ab1-a13a-786b4583bad1"/>
+      <componentinstantiation id="fastfilter_1" startorder="3">
+        <usagename>fastfilter_1</usagename>
+        <componentproperties>
+          <structref refid="filterProps">
+            <simpleref refid="Type" value="lowpass"/>
+            <simpleref refid="Ripple" value="0.5"/>
+            <simpleref refid="freq1" value="16000.0"/>
+          </structref>
+        </componentproperties>
+        <findcomponent>
+          <namingservice name="fastfilter_1"/>
+        </findcomponent>
+      </componentinstantiation>
+    </componentplacement>
+    <componentplacement>
+      <componentfileref refid="ArbitraryRateResampler_4dc03247-5804-4f8b-8e01-4aa1d8e8e51e"/>
+      <componentinstantiation id="ArbitraryRateResampler_1" startorder="4">
+        <usagename>ArbitraryRateResampler_1</usagename>
+        <componentproperties>
+          <simpleref refid="outputRate" value="32000.0"/>
+        </componentproperties>
+        <findcomponent>
+          <namingservice name="ArbitraryRateResampler_1"/>
+        </findcomponent>
+      </componentinstantiation>
+    </componentplacement>
+    <componentplacement>
+      <componentfileref refid="AmFmPmBasebandDemod_2694bd80-14d9-4172-8d3d-497d5eb18ab0"/>
+      <componentinstantiation id="AmFmPmBasebandDemod_1" startorder="2">
+        <usagename>AmFmPmBasebandDemod_1</usagename>
+        <componentproperties>
+          <simpleref refid="freqDeviation" value="15000.0"/>
+        </componentproperties>
+        <findcomponent>
+          <namingservice name="AmFmPmBasebandDemod_1"/>
+        </findcomponent>
+      </componentinstantiation>
+    </componentplacement>
+    <componentplacement>
+      <componentfileref refid="DataConverter_e9fe6c1b-876d-4047-a7bc-91d8d8a462bc"/>
+      <componentinstantiation id="DataConverter_1" startorder="6">
+        <usagename>DataConverter_1</usagename>
+        <findcomponent>
+          <namingservice name="DataConverter_1"/>
+        </findcomponent>
+      </componentinstantiation>
+    </componentplacement>
+    <componentplacement>
+      <componentfileref refid="SourceVITA49_aaa28aa8-91b0-470d-b7d8-370ec35842ad"/>
+      <componentinstantiation id="SourceVITA49_1" startorder="7">
+        <usagename>SourceVITA49_1</usagename>
+        <componentproperties>
+          <structref refid="attachment_override">
+            <simpleref refid="attachment_override::port" value="12701"/>
+            <simpleref refid="transportMethod_override::use_udp_protocol" value="false"/>
+            <simpleref refid="attachment_override::enabled" value="true"/>
+          </structref>
+          <structref refid="VITA49Processing_override">
+            <simpleref refid="transportMethod_override::VRL_frames" value="true"/>
+            <simpleref refid="VITA49Processing_override::enable" value="true"/>
+          </structref>
+          <structref refid="advanced_configuration">
+            <simpleref refid="vita49_packet_size" value="8192"/>
+          </structref>
+          <simpleref refid="interface" value="lo"/>
+        </componentproperties>
+        <findcomponent>
+          <namingservice name="SourceVITA49_1"/>
+        </findcomponent>
+      </componentinstantiation>
+    </componentplacement>
+  </partitioning>
+  <assemblycontroller>
+    <componentinstantiationref refid="fm_psd"/>
+  </assemblycontroller>
+  <connections>
+    <connectinterface id="connection_2">
+      <usesport>
+        <usesidentifier>dataFloat_out</usesidentifier>
+        <componentinstantiationref refid="TuneFilterDecimate_1"/>
+      </usesport>
+      <providesport>
+        <providesidentifier>dataFloat_in</providesidentifier>
+        <componentinstantiationref refid="narrowband_psd"/>
+      </providesport>
+    </connectinterface>
+    <connectinterface id="connection_5">
+      <usesport>
+        <usesidentifier>dataFloat_out</usesidentifier>
+        <componentinstantiationref refid="fastfilter_1"/>
+      </usesport>
+      <providesport>
+        <providesidentifier>dataFloat_in</providesidentifier>
+        <componentinstantiationref refid="ArbitraryRateResampler_1"/>
+      </providesport>
+    </connectinterface>
+    <connectinterface id="connection_3">
+      <usesport>
+        <usesidentifier>dataFloat_out</usesidentifier>
+        <componentinstantiationref refid="TuneFilterDecimate_1"/>
+      </usesport>
+      <providesport>
+        <providesidentifier>dataFloat_in</providesidentifier>
+        <componentinstantiationref refid="AmFmPmBasebandDemod_1"/>
+      </providesport>
+    </connectinterface>
+    <connectinterface id="connection_4">
+      <usesport>
+        <usesidentifier>fm_dataFloat_out</usesidentifier>
+        <componentinstantiationref refid="AmFmPmBasebandDemod_1"/>
+      </usesport>
+      <providesport>
+        <providesidentifier>dataFloat_in</providesidentifier>
+        <componentinstantiationref refid="fm_psd"/>
+      </providesport>
+    </connectinterface>
+    <connectinterface id="connection_7">
+      <usesport>
+        <usesidentifier>fm_dataFloat_out</usesidentifier>
+        <componentinstantiationref refid="AmFmPmBasebandDemod_1"/>
+      </usesport>
+      <providesport>
+        <providesidentifier>dataFloat_in</providesidentifier>
+        <componentinstantiationref refid="fastfilter_1"/>
+      </providesport>
+    </connectinterface>
+    <connectinterface id="connection_1">
+      <usesport>
+        <usesidentifier>dataFloat_out</usesidentifier>
+        <componentinstantiationref refid="DataConverter_1"/>
+      </usesport>
+      <providesport>
+        <providesidentifier>dataFloat_in</providesidentifier>
+        <componentinstantiationref refid="TuneFilterDecimate_1"/>
+      </providesport>
+    </connectinterface>
+    <connectinterface id="connection_8">
+      <usesport>
+        <usesidentifier>dataShort_out</usesidentifier>
+        <componentinstantiationref refid="SourceVITA49_1"/>
+      </usesport>
+      <providesport>
+        <providesidentifier>dataShort</providesidentifier>
+        <componentinstantiationref refid="DataConverter_1"/>
+      </providesport>
+    </connectinterface>
+  </connections>
+  <externalports>
+    <port externalname="tunerFloat_in">
+      <providesidentifier>dataFloat_in</providesidentifier>
+      <componentinstantiationref refid="TuneFilterDecimate_1"/>
+    </port>
+    <port externalname="audioFloat_out">
+      <usesidentifier>dataFloat_out</usesidentifier>
+      <componentinstantiationref refid="ArbitraryRateResampler_1"/>
+    </port>
+  </externalports>
+  <externalproperties>
+    <property comprefid="fm_psd" propid="fftSize" externalpropid="fm_psd_fftSize"/>
+    <property comprefid="narrowband_psd" propid="fftSize" externalpropid="narrowband_psd_fftSize"/>
+    <property comprefid="ArbitraryRateResampler_1" propid="outputRate" externalpropid="audio_outputRate"/>
+    <property comprefid="narrowband_psd" propid="numAvg" externalpropid="narrowband_psd_numAvg"/>
+    <property comprefid="fm_psd" propid="numAvg" externalpropid="fm_psd_numAvg"/>
+  </externalproperties>
+  <usesdevicedependencies>
+    <usesdevice id="AVS4000_1">
+      <propertyref refid="DCE:cdc5ee18-7ceb-4ae6-bf4c-31f983179b4d" value="FRONTEND::TUNER"/>
+      <propertyref refid="DCE:0f99b2e4-9903-4631-9846-ff349d18ecfb" value="AVS-4000"/>
+      <structref refid="FRONTEND::tuner_allocation">
+        <simpleref refid="FRONTEND::tuner_allocation::tuner_type" value="RX_DIGITIZER"/>
+        <simpleref refid="FRONTEND::tuner_allocation::allocation_id" value="2cbd66e1-fcb9-4be6-a634-e815a6f9620c"/>
+        <simpleref refid="FRONTEND::tuner_allocation::center_frequency" value="1.011E8"/>
+        <simpleref refid="FRONTEND::tuner_allocation::bandwidth" value="0.0"/>
+        <simpleref refid="FRONTEND::tuner_allocation::bandwidth_tolerance" value="20.0"/>
+        <simpleref refid="FRONTEND::tuner_allocation::sample_rate" value="2000000.0"/>
+        <simpleref refid="FRONTEND::tuner_allocation::sample_rate_tolerance" value="20.0"/>
+        <simpleref refid="FRONTEND::tuner_allocation::device_control" value="true"/>
+        <simpleref refid="FRONTEND::tuner_allocation::group_id" value=""/>
+        <simpleref refid="FRONTEND::tuner_allocation::rf_flow_id" value=""/>
+      </structref>
+    </usesdevice>
+  </usesdevicedependencies>
+</softwareassembly>
