@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE deviceconfiguration PUBLIC "-//JTRS//DTD SCA V2.2.2 DCD//EN" "deviceconfiguration.dtd">
+<deviceconfiguration id="DCE:95847e27-016f-4c43-bb95-5ce9794d373a" name="AVS4000_Vita49_Bulkio">
+  <devicemanagersoftpkg>
+    <localfile name="/mgr/DeviceManager.spd.xml"/>
+  </devicemanagersoftpkg>
+  <componentfiles>
+    <componentfile id="AVS4000_b5f6ab7b-7dd7-41a3-a694-64adb51a38dc" type="SPD">
+      <localfile name="/devices/AVS4000/AVS4000.spd.xml"/>
+    </componentfile>
+  </componentfiles>
+  <partitioning>
+    <componentplacement>
+      <componentfileref refid="AVS4000_b5f6ab7b-7dd7-41a3-a694-64adb51a38dc"/>
+      <componentinstantiation id="AVS4000_Vita49_Bulkio:AVS4000_1" startorder="0">
+        <usagename>AVS4000_1</usagename>
+        <componentproperties>
+          <structsequenceref refid="avs4000_output_configuration">
+            <structvalue>
+              <simpleref refid="avs4000_output_configuration::tuner_number" value="0"/>
+              <simpleref refid="avs4000_output_configuration::output_format" value="VITA49_Format"/>
+              <simpleref refid="avs4000_output_configuration::output_source" value="BULKIO_Source"/>
+              <simpleref refid="output_endian" value="LITTLE_Endian"/>
+            </structvalue>
+          </structsequenceref>
+        </componentproperties>
+      </componentinstantiation>
+    </componentplacement>
+  </partitioning>
+  <domainmanager>
+    <namingservice name="TOA/TOA"/>
+  </domainmanager>
+</deviceconfiguration>
