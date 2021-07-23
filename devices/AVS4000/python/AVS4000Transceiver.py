@@ -1385,7 +1385,7 @@ class DeviceManager:
     responsible for manageing all of the Device Controllers (DC)'s present.
     """
 
-    def __init__(self, the_host='localhost', the_port=BASE_CONTROL_PORT, loglevel=logging.INFO):
+    def __init__(self, the_host='localhost', the_port=BASE_CONTROL_PORT, loglevel=logging.DEBUG):
         """
         Constructor
 
@@ -1442,7 +1442,7 @@ class DeviceManager:
 
             the_index = 0
             for the_key in the_json[1].keys():
-                if the_key != 'dm':
+                if the_key != 'dm' and the_key != 'ver':
                     self.logger_.debug("processing key <{}>".format(the_key))
 
                     the_object = the_json[1].get(the_key)

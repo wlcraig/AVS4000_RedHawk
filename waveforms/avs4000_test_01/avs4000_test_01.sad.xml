@@ -20,8 +20,8 @@ This waveform assumes that the AVS4000 is sending data via bukio, rather than vi
     <componentfile id="AmFmPmBasebandDemod_2694bd80-14d9-4172-8d3d-497d5eb18ab0" type="SPD">
       <localfile name="/components/rh/AmFmPmBasebandDemod/AmFmPmBasebandDemod.spd.xml"/>
     </componentfile>
-    <componentfile id="DataConverter_12d21836-d7e1-4db0-89a0-9ef61793ffd4" type="SPD">
-      <localfile name="/components/toa/DataConverter/DataConverter.spd.xml"/>
+    <componentfile id="DataConverter_03cd1691-0161-4a46-90a1-c35dcc7cbd5a" type="SPD">
+      <localfile name="/components/rh/DataConverter/DataConverter.spd.xml"/>
     </componentfile>
   </componentfiles>
   <partitioning>
@@ -108,7 +108,7 @@ This waveform assumes that the AVS4000 is sending data via bukio, rather than vi
       </componentinstantiation>
     </componentplacement>
     <componentplacement>
-      <componentfileref refid="DataConverter_12d21836-d7e1-4db0-89a0-9ef61793ffd4"/>
+      <componentfileref refid="DataConverter_03cd1691-0161-4a46-90a1-c35dcc7cbd5a"/>
       <componentinstantiation id="DataConverter_1" startorder="6">
         <usagename>DataConverter_1</usagename>
         <findcomponent>
@@ -187,7 +187,7 @@ This waveform assumes that the AVS4000 is sending data via bukio, rather than vi
         <deviceusedbyapplication usesrefid="AVS4000_1"/>
       </usesport>
       <providesport>
-        <providesidentifier>dataShort</providesidentifier>
+        <providesidentifier>dataShort_in</providesidentifier>
         <componentinstantiationref refid="DataConverter_1"/>
       </providesport>
     </connectinterface>

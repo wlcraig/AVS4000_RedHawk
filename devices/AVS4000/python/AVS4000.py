@@ -391,7 +391,7 @@ class AVS4000_i(AVS4000_base):
         #
         # This should be a configurable parameter!
         # 
-        self._baseLog.debug("--> process()")
+        self._baseLog.trace("--> process()")
 
         for index in self.devices_:
             streamID = self.devices_[index].stream_id()
@@ -401,8 +401,8 @@ class AVS4000_i(AVS4000_base):
             # return NOOP to indicate no data.
             #
             if self.devices_[index].read_data_flag() is False:
-                self._baseLog.debug("    read_data <FALSE>")
-                self._baseLog.debug("<-- process()")
+                self._baseLog.trace("    read_data <FALSE>")
+                self._baseLog.trace("<-- process()")
                 return NOOP
 
             if self.devices_[index].output_format() == AVS4000Transceiver.COMPLEXOutputFormat:
@@ -410,13 +410,13 @@ class AVS4000_i(AVS4000_base):
                 Physical device is configured to prduce complex samples of unsigned short I & Q.  These
                 will be passed along to consumer via BulkIO
                 """
-                self._baseLog.debug("    Before read {:.4f}".format(time.time()))
+                self._baseLog.trace("    Before read {:.4f}".format(time.time()))
                 data = self.devices_[index].get_data_complex()
-                self._baseLog.debug("    After  read {:.4f}".format(time.time()))
+                self._baseLog.trace("    After  read {:.4f}".format(time.time()))
 
                 if data is None:
-                    self._baseLog.debug("    data is None")
-                    self._baseLog.debug("<-- process()")
+                    self._baseLog.trace("    data is None")
+                    self._baseLog.trace("<-- process()")
                     return NOOP
 
                 utcNow = bulkio.timestamp.now()
@@ -535,7 +535,7 @@ class AVS4000_i(AVS4000_base):
                 self._baseLog.debug("<-- process()")
                 return NOOP
 
-        self._baseLog.debug("<-- process()")
+        self._baseLog.trace("<-- process()")
         return NORMAL
 
     '''
